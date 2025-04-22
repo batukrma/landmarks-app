@@ -1,12 +1,13 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { MapContainer, TileLayer, Marker, Popup, useMapEvents } from 'react-leaflet'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import MapOverlayMenu from './MapOverlayMenu'
+import LandmarkTable from './LandmarkTable'
 
-// Leaflet varsayılan ikonlarını düzeltme
+
 // eslint-disable-next-line
 delete (L.Icon.Default.prototype as any)._getIconUrl
 L.Icon.Default.mergeOptions({
@@ -52,7 +53,14 @@ interface ApiVisitedLandmark {
 
 export default function MapSelector({ onLocationSelect }: MapSelectorProps) {
     const [selectedPosition, setSelectedPosition] = useState<[number, number] | null>(null)
-    const [visitedLandmarks, setVisitedLandmarks] = useState<VisitedLandmark[]>([])
+    const [visitedLandmarks, setVisitedLandmarks] = useState<VisitedLandmark[]>([]);
+
+    useEffect(() => {
+        const storedVisitedLandmarks = localStorage.getItem('visitedLandmarks');
+        if (storedVisitedLandmarks) {
+            setVisitedLandmarks(JSON.parse(storedVisitedLandmarks));
+        }
+    }, []);
 
     function LocationMarker() {
         useMapEvents({
@@ -66,20 +74,11 @@ export default function MapSelector({ onLocationSelect }: MapSelectorProps) {
         return selectedPosition ? <Marker position={selectedPosition} /> : null
     }
 
-    async function getMessage() {
-        try {
-            const res = await fetch('/api/landmarks')
-            const data = await res.json()
-            console.log('API Response:', data)
-        } catch (err) {
-            console.error('Failed to fetch landmarks:', err)
-        }
-    }
 
     const handleGetVisited = async () => {
         try {
-            const res = await fetch('/api/visited')
-            const data: ApiVisitedLandmark[] = await res.json()
+            const res = await fetch('/api/visited');
+            const data: ApiVisitedLandmark[] = await res.json();
 
             const transformed: VisitedLandmark[] = data.map((item) => ({
                 id: item.id,
@@ -93,17 +92,19 @@ export default function MapSelector({ onLocationSelect }: MapSelectorProps) {
                     description: item.landmarks.description,
                     category: item.landmarks.category,
                 },
-            }))
+            }));
 
-            setVisitedLandmarks(transformed)
+            setVisitedLandmarks(transformed);
         } catch (error) {
-            console.error('Failed to fetch visited landmarks:', error)
+            console.error('Failed to fetch visited landmarks:', error);
         }
-    }
+    };
 
-    function createPlan(): void {
-        throw new Error('Function not implemented.')
-    }
+
+
+    const handleClearMarkers = () => {
+        setVisitedLandmarks([]);
+    };
 
     return (
         <div className="fixed inset-0">
@@ -118,7 +119,6 @@ export default function MapSelector({ onLocationSelect }: MapSelectorProps) {
                     url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                 />
 
-                {/* Ziyaret edilmiş konumları haritada göster */}
                 {visitedLandmarks.map((vl) => (
                     <Marker
                         key={vl.id}
@@ -133,15 +133,13 @@ export default function MapSelector({ onLocationSelect }: MapSelectorProps) {
                     </Marker>
                 ))}
 
-                {/* Kullanıcının tıkladığı konumu göster */}
                 <LocationMarker />
             </MapContainer>
-
-            {/* Sağ üstteki overlay menü */}
             <MapOverlayMenu
-                onAddNote={getMessage}
+                onAddNote={() => console.log('Add Note')}
                 onGetVisited={handleGetVisited}
-                createPlan={createPlan}
+                onClearMarkers={handleClearMarkers}
+                createPlan={() => console.log('Create Plan')}
                 visitedLandmarks={visitedLandmarks.map((vl) => ({
                     id: vl.id,
                     name: vl.landmark.name,
@@ -150,13 +148,18 @@ export default function MapSelector({ onLocationSelect }: MapSelectorProps) {
                     visitor_name: vl.visitor_name,
                 }))}
             />
+            <div>
+                <LandmarkTable />
+            </div>
 
-            {/* Tıklanan konum alt bilgi */}
-            {selectedPosition && (
-                <div className="absolute bottom-24 left-1/2 transform -translate-x-1/2 z-50 bg-black/60 text-white px-6 py-2 rounded-full shadow-md text-sm font-medium">
-                    Selected: {selectedPosition[0].toFixed(5)}, {selectedPosition[1].toFixed(5)}
-                </div>
-            )}
-        </div>
+
+            {
+                selectedPosition && (
+                    <div className="absolute bottom-24 left-1/2 transform -translate-x-1/2 z-50 bg-black/60 text-white px-6 py-2 rounded-full shadow-md text-sm font-medium">
+                        Selected: {selectedPosition[0].toFixed(5)}, {selectedPosition[1].toFixed(5)}
+                    </div>
+                )
+            }
+        </div >
     )
 }

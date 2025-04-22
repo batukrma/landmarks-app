@@ -1,20 +1,26 @@
-import prisma from './client'
+// testprisma.ts
+import { PrismaClient } from '@prisma/client'
 
-async function testPrisma() {
-    // Yeni bir landmark ekleyelim
-    await prisma.visited_landmarks.create({
+const prisma = new PrismaClient()
+
+async function main() {
+    const newLandmark = await prisma.visited_landmarks.create({
         data: {
-            landmark_id: 1, // ilgili landmark_id'yi girin
-            visited_date: new Date(),
-            visitor_name: 'Ali'
-        }
+            landmark_id: 2, // ID'si 2 olan landmark
+            visitor_name: 'Kırma',
+            visited_date: new Date('2025-04-22'), // Tarih doğru formatta
+        },
     })
 
-
-
-    // Eklediğimiz landmark'ı veritabanından çekelim
-    const landmarks = await prisma.landmarks.findMany();
-    console.log('All landmarks:', landmarks)
+    console.log('Yeni ziyaret edilen yer eklendi:', newLandmark)
 }
 
-testPrisma()
+main()
+    .then(async () => {
+        await prisma.$disconnect()
+    })
+    .catch(async (e) => {
+        console.error(e)
+        await prisma.$disconnect()
+        process.exit(1)
+    })
