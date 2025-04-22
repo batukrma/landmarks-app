@@ -33,6 +33,18 @@ export default function MapSelector({ onLocationSelect }: MapSelectorProps) {
         return selectedPosition ? <Marker position={selectedPosition} /> : null
     }
 
+    // Example GET request to /api/landmarks
+    async function getMessage() {
+        await fetch('/api/landmarks')
+            .then((res) => res.json())
+            .then((data) => {
+                console.log('API Response:', data)
+            })
+            .catch((err) => {
+                console.error('Failed to fetch landmarks:', err)
+            })
+    }
+
     return (
         <div className="fixed inset-0">
             <MapContainer
@@ -49,7 +61,7 @@ export default function MapSelector({ onLocationSelect }: MapSelectorProps) {
             </MapContainer>
 
             <MapOverlayMenu
-                onAddNote={() => console.log('Add Note clicked')}
+                onAddNote={getMessage}
                 onGetVisited={() => console.log('Get Visited Places clicked')}
             />
 
