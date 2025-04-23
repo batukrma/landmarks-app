@@ -1,6 +1,5 @@
 import { useState } from 'react';
 
-// Landmark veri yapısı
 interface LandmarkInput {
     id: number;
     name: string;
@@ -92,7 +91,7 @@ export default function LandmarkTable() {
 
 
     const handleClose = () => {
-        setIsTableOpen(false);  // Hide table when closing
+        setIsTableOpen(false);
         setLandmarkInputs([]);
     };
 
@@ -151,7 +150,7 @@ export default function LandmarkTable() {
                                     <option value="Amusement Park">Amusement Park</option>
                                     <option value="Historic Castle">Historic Castle</option>
                                     <option value="Archaeological Site">Archaeological Site</option>
-                                    <option value="Zoo">Other</option>
+                                    <option value="Other">Other</option>
 
 
                                 </select>

@@ -1,4 +1,6 @@
 import { PrismaClient } from '@prisma/client'
+import { NextResponse } from "next/server";
+
 
 const prisma = new PrismaClient()
 
@@ -19,21 +21,14 @@ export async function POST(request: Request) {
     }
 }
 
-// READ: Tüm ziyaret edilmiş yerleri getir
+
 export async function GET() {
-    try {
-        const visitedLandmarks = await prisma.visited_landmarks.findMany({
-            include: {
-                landmarks: true,  // landmarks tablosunu dahil et
-            }
-        })
-
-        const visitedLandmarksWithLandmarks = visitedLandmarks.filter(vl => vl.landmarks);
-
-        return new Response(JSON.stringify(visitedLandmarksWithLandmarks), { status: 200 })
-    } catch {
-        return new Response('Failed to fetch visited landmarks', { status: 500 })
-    }
+    const visited = await prisma.visited_landmarks.findMany({
+        include: {
+            landmarks: true,
+        },
+    });
+    return NextResponse.json(visited);
 }
 
 // READ: Tek bir ziyaret kaydını getir
