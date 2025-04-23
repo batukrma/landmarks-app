@@ -1,86 +1,79 @@
-import { PrismaClient } from '@prisma/client'
-import { NextRequest, NextResponse } from "next/server";
+import { DateTime } from 'luxon';
+import { PrismaClient } from '@prisma/client';
+import { NextRequest, NextResponse } from 'next/server';
+import type { Prisma } from '@prisma/client';
 
-const prisma = new PrismaClient()
+const prisma = new PrismaClient();
 
-// CREATE: Yeni plan oluştur
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
     try {
-        const { user_name, landmark_id, planned_date, note } = await request.json()
-        const newPlan = await prisma.visiting_plans.create({
-            data: {
-                user_name,
-                landmark_id,
-                planned_date,
-                note
-            }
-        })
-        return new Response(JSON.stringify(newPlan), { status: 201 })
-    } catch {
-        return new Response('Failed to create visiting plan', { status: 500 })
+        const { name, items }: { name: string; items: Prisma.PlanItemCreateManyInput[] } = await request.json();
+        console.log('Plan oluşturuluyor:', name, items);
+
+        let plan = await prisma.visitingPlan.findFirst({ where: { name } });
+        if (!plan) {
+            console.log('Yeni plan oluşturuluyor...');
+            plan = await prisma.visitingPlan.create({ data: { name } });
+        }
+
+        const newPlanItems = await Promise.all(
+            items.map(async (item: Prisma.PlanItemCreateManyInput) => {
+                const parsedPlannedDate = DateTime.fromISO(item.plannedDate, { zone: 'utc' });
+
+                if (!parsedPlannedDate.isValid) {
+                    throw new Error(`Geçersiz tarih formatı: landmarkId ${item.landmarkId} - Tarih: ${item.plannedDate}`);
+                }
+
+                const createdItem = await prisma.planItem.create({
+                    data: {
+                        landmark: { connect: { id: item.landmarkId } },
+                        plannedDate: parsedPlannedDate.toJSDate(),
+                        visited: false,
+                        visitingPlan: { connect: { id: plan!.id } },
+                    },
+                });
+
+                return createdItem;
+            })
+        );
+
+        console.log('Plan ve plan item’lar başarıyla oluşturuldu.');
+        return new NextResponse(
+            JSON.stringify({
+                success: true,
+                plan: plan,
+                planItems: newPlanItems,
+            }),
+            { status: 201 }
+        );
+    } catch (error) {
+        console.error('Plan oluşturulurken hata:', error);
+        return new NextResponse(
+            JSON.stringify({ error: 'Plan oluşturulurken bir hata oluştu.' }),
+            { status: 500 }
+        );
     }
 }
 
-
-
-// READ: Tüm ziyaret planlarını getir
+//GET
 export async function GET() {
     try {
-        const plans = await prisma.visiting_plans.findMany({
+        const plans = await prisma.visitingPlan.findMany({
             include: {
-                landmarks: true,
+                items: {
+                    include: {
+                        landmark: true,
+                    },
+                },
             },
         });
 
-        return new Response(JSON.stringify(plans), { status: 200 });
+        return NextResponse.json(plans);
     } catch (error) {
-        console.error('Error fetching visiting plans:', error);
-        return new Response('Failed to fetch visiting plans', { status: 500 });
-    }
-}
-
-// READ: Tek bir ziyaret planını getir
-export async function GET_ONE(request: Request) {
-    try {
-        const id = parseInt(request.url.split('/').pop() || '')
-        const plan = await prisma.visiting_plans.findUnique({
-            where: { id }
-        })
-        if (!plan) {
-            return new Response('Plan not found', { status: 404 })
-        }
-        return new Response(JSON.stringify(plan), { status: 200 })
-    } catch {
-        return new Response('Failed to fetch visiting plan', { status: 500 })
-    }
-}
-
-// UPDATE: Varolan bir ziyaret planını güncelle
-export async function PUT(req: NextRequest, { params }: { params: { id: string } }) {
-    const data = await req.json();
-    const { user_name, landmark_id, planned_date, note } = data;
-
-    const updatedPlan = await prisma.visiting_plans.update({
-        where: { id: parseInt(params.id) },
-        data: {
-            user_name,
-            landmark_id,
-            planned_date: new Date(planned_date),
-            note,
-        },
-    });
-
-    return NextResponse.json(updatedPlan);
-}
-// DELETE: Ziyaret planını sil
-export async function DELETE(request: Request) {
-    try {
-        const id = parseInt(request.url.split('/').pop() || '')
-        const deletedPlan = await prisma.visiting_plans.delete({
-            where: { id }
-        })
-        return new Response(JSON.stringify(deletedPlan), { status: 200 })
-    } catch {
-        return new Response('Failed to delete visiting plan', { status: 500 })
+        console.error('Planlar alınırken hata:', error);
+        return new NextResponse(
+            JSON.stringify({ error: 'Planlar alınırken bir hata oluştu.' }),
+            { status: 500 }
+        );
     }
 }

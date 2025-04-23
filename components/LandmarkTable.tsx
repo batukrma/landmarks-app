@@ -1,61 +1,40 @@
-import { useState } from 'react';
+import { LANDMARK_CATEGORIES } from '@/utils/constants';
+import { useEffect, useState } from 'react';
 
-interface LandmarkInput {
-    id: number;
-    name: string;
-    description: string;
-    category: string;
-    latitude: number;
-    longitude: number;
-}
+export default function LandmarkTable({ selectedLandmark }: { selectedLandmark: [number, number] }) {
+    // Her input için ayrı state'ler
+    const [name, setName] = useState('');
+    const [description, setDescription] = useState('');
+    const [category, setCategory] = useState('');
+    const [latitude, setLatitude] = useState<number | string>(selectedLandmark[0]);
+    const [longitude, setLongitude] = useState<number | string>(selectedLandmark[1]);
 
-export default function LandmarkTable() {
-    const [landmarkInputs, setLandmarkInputs] = useState<LandmarkInput[]>([]);
     const [isTableOpen, setIsTableOpen] = useState(false);
 
-    const handleAddLandmark = (latitude: number, longitude: number) => {
-        setIsTableOpen(true);
-        const exists = landmarkInputs.some(
-            (landmark) => landmark.latitude === latitude && landmark.longitude === longitude
-        );
-
-        if (exists) {
-            setLandmarkInputs((prevInputs) =>
-                prevInputs.map((landmark) =>
-                    landmark.latitude === latitude && landmark.longitude === longitude
-                        ? { ...landmark, latitude, longitude }
-                        : landmark
-                )
-            );
-        } else {
-            setLandmarkInputs((prevInputs) => [
-                ...prevInputs,
-                {
-                    id: prevInputs.length + 1,
-                    name: '',
-                    description: '',
-                    category: '',
-                    latitude,
-                    longitude,
-                },
-            ]);
+    const handleAddLandmark = () => {
+        if (selectedLandmark[0] === 0 || selectedLandmark[1] === 0) {
+            alert("Lütfen not eklenecek bir konum seçiniz.")
+            return;
         }
+        // Formu sıfırlıyoruz
+        setName('');
+        setDescription('');
+        setCategory('');
+        setLatitude(selectedLandmark[0]);
+        setLongitude(selectedLandmark[1]);
+        setIsTableOpen(true);
     };
 
-    const handleChange = (index: number, field: keyof LandmarkInput, value: string | number) => {
-        const updatedInputs = [...landmarkInputs];
-        updatedInputs[index] = {
-            ...updatedInputs[index],
-            [field]: value,
-        };
-        setLandmarkInputs(updatedInputs);
-    };
+    // Form açıkken koordinatlar güncellenirse, otomatik güncelle
+    useEffect(() => {
+        if (isTableOpen) {
+            setLatitude(selectedLandmark[0]);
+            setLongitude(selectedLandmark[1]);
+        }
+    }, [selectedLandmark, isTableOpen]);
 
-    const handleSave = async (index: number) => {
-        const landmark = landmarkInputs[index];
-
-        // Form doğrulaması
-        if (!landmark.name || !landmark.description || !landmark.category) {
+    const handleSave = async () => {
+        if (!name || !description || !category) {
             alert("Lütfen tüm alanları doldurun!");
             return;
         }
@@ -63,23 +42,13 @@ export default function LandmarkTable() {
         try {
             const response = await fetch('/api/landmarks', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    name: landmark.name,
-                    latitude: landmark.latitude,
-                    longitude: landmark.longitude,
-                    description: landmark.description,
-                    category: landmark.category,
-                }),
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name, description, category, latitude, longitude }),
             });
 
             if (response.ok) {
-                const savedLandmark = await response.json();
-                console.log('Saved Landmark:', savedLandmark);
-                setIsTableOpen(false); // Table'ı kapatma
-                setLandmarkInputs([]); // Girdi alanlarını sıfırlama
+                console.log('Saved Landmark:', await response.json());
+                setIsTableOpen(false);
             } else {
                 console.error('Failed to save landmark');
             }
@@ -88,11 +57,8 @@ export default function LandmarkTable() {
         }
     };
 
-
-
     const handleClose = () => {
         setIsTableOpen(false);
-        setLandmarkInputs([]);
     };
 
     return (
@@ -100,98 +66,80 @@ export default function LandmarkTable() {
             <div className="flex flex-col space-y-4">
                 {!isTableOpen && (
                     <button
-                        onClick={() => handleAddLandmark(37.16336, 28.38753)}
+                        onClick={handleAddLandmark}
                         className="cursor-pointer active:scale-95 text-neutral-1000 hover:bg-black bg-neutral-700 px-4 py-2 rounded-lg transition font-medium"
                     >
-                        Add Landmark
+                        Add Note
                     </button>
                 )}
-                <div className="flex flex-col space-y-6">
-                    {landmarkInputs.map((landmark, index) => (
-                        <div key={landmark.id} className="text-gray-900 border p-4 rounded-md shadow space-y-2 bg-gray-50">
-                            <div>
-                                <label className="block text font-medium">Name</label>
-                                <input
-                                    type="text"
-                                    value={landmark.name}
-                                    onChange={(e) => handleChange(index, 'name', e.target.value)}
-                                    className="border p-1 rounded w-full "
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium">Description</label>
-                                <input
-                                    type="text"
-                                    value={landmark.description}
-                                    onChange={(e) => handleChange(index, 'description', e.target.value)}
-                                    className="border p-1 rounded w-full"
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium">Category</label>
-                                <select
-                                    value={landmark.category}
-                                    onChange={(e) => handleChange(index, 'category', e.target.value)}
-                                    className="border p-1 rounded w-full"
-                                >
-                                    <option value="Museum">Museum</option>
-                                    <option value="Historical Site">Historical Site</option>
-                                    <option value="Nature Reserve">Nature Reserve</option>
-                                    <option value="Park">Park</option>
-                                    <option value="Beach">Beach</option>
-                                    <option value="Waterfall">Waterfall</option>
-                                    <option value="Mountain">Mountain</option>
-                                    <option value="Hiking Trail">Hiking Trail</option>
-                                    <option value="Botanical Garden">Botanical Garden</option>
-                                    <option value="Zoo">Zoo</option>
-                                    <option value="Art Gallery">Art Gallery</option>
-                                    <option value="Monument">Monument</option>
-                                    <option value="Cultural Center">Cultural Center</option>
-                                    <option value="Amusement Park">Amusement Park</option>
-                                    <option value="Historic Castle">Historic Castle</option>
-                                    <option value="Archaeological Site">Archaeological Site</option>
-                                    <option value="Other">Other</option>
-
-
-                                </select>
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium">Latitude</label>
-                                <input
-                                    type="text"
-                                    value={landmark.latitude}
-                                    readOnly
-                                    className="border p-1 rounded w-full bg-gray-100"
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium">Longitude</label>
-                                <input
-                                    type="text"
-                                    value={landmark.longitude}
-                                    readOnly
-                                    className="border p-1 rounded w-full bg-gray-100"
-                                />
-                            </div>
-                            <div className="pt-2 flex justify-between space-x-2">
-                                <button
-                                    onClick={() => handleSave(index)}
-                                    className="cursor-pointer active:scale-95 text-white hover:bg-neutral-700 bg-black/40 px-4 py-2 rounded-lg transition font-medium"
-                                >
-                                    Save
-                                </button>
-                                {isTableOpen && (
-                                    <button
-                                        onClick={handleClose}
-                                        className="cursor-pointer active:scale-95 text-white hover:bg-neutral-700 bg-black/40 px-4 py-2 rounded-lg transition font-medium"
-                                    >
-                                        Close
-                                    </button>
-                                )}
-                            </div>
+                {isTableOpen && (
+                    <div className="text-gray-900 border p-4 rounded-md shadow space-y-2 bg-gray-50">
+                        <div>
+                            <label className="block text font-medium">Name</label>
+                            <input
+                                type="text"
+                                value={name}
+                                onChange={(e) => setName(e.target.value)}
+                                className="border p-1 rounded w-full "
+                            />
                         </div>
-                    ))}
-                </div>
+                        <div>
+                            <label className="block text-sm font-medium">Description</label>
+                            <input
+                                type="text"
+                                value={description}
+                                onChange={(e) => setDescription(e.target.value)}
+                                className="border p-1 rounded w-full"
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium">Category</label>
+                            <select
+                                value={category}
+                                onChange={(e) => setCategory(e.target.value)}
+                                className="border p-1 rounded w-full"
+                            >
+                                {LANDMARK_CATEGORIES.map((category, index) => (
+                                    <option key={index} value={category}>
+                                        {category}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium">Latitude</label>
+                            <input
+                                type="text"
+                                value={latitude}
+                                readOnly
+                                className="border p-1 rounded w-full bg-gray-100"
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium">Longitude</label>
+                            <input
+                                type="text"
+                                value={longitude}
+                                readOnly
+                                className="border p-1 rounded w-full bg-gray-100"
+                            />
+                        </div>
+                        <div className="pt-2 flex justify-between space-x-2">
+                            <button
+                                onClick={handleSave}
+                                className="cursor-pointer active:scale-95 text-white hover:bg-neutral-700 bg-black/40 px-4 py-2 rounded-lg transition font-medium"
+                            >
+                                Save
+                            </button>
+                            <button
+                                onClick={handleClose}
+                                className="cursor-pointer active:scale-95 text-white hover:bg-neutral-700 bg-black/40 px-4 py-2 rounded-lg transition font-medium"
+                            >
+                                Close
+                            </button>
+                        </div>
+                    </div>
+                )}
             </div>
         </div>
     );

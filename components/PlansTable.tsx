@@ -1,167 +1,192 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react';
 
 interface PlanInput {
-    id: number
-    planName: string
-    description: string
-    planned_date: Date
-    landmark_id?: number
+    landmarkId: number;
+    planned_date: string;
 }
 
 interface Landmark {
-    id: number
-    name: string
-    description: string
-    category: string
-    latitude: number
-    longitude: number
+    id: number;
+    name: string;
+    description: string;
+    category: string;
+    latitude: number;
+    longitude: number;
 }
 
 interface PlansTableProps {
-    show: boolean
-    onClose: () => void
-    landmarks: Landmark[]
+    show: boolean;
+    onClose: () => void;
+    landmarks: Landmark[];
 }
 
 export default function PlansTable({ show, onClose, landmarks }: PlansTableProps) {
-    const [planInputs, setPlanInputs] = useState<PlanInput[]>([])
-    const [selectedNoteId, setSelectedNoteId] = useState<number | null>(null)
+    const [planInputs, setPlanInputs] = useState<PlanInput[]>([]);
+    const [selectedLandmarks, setSelectedLandmarks] = useState<Landmark[]>([]);
+    const [planName, setPlanName] = useState(''); // 🔹 Yeni: Plan ismi
 
     useEffect(() => {
         if (show) {
-            setPlanInputs([{
-                id: 1,
-                planName: '',
-                description: '',
-                planned_date: new Date(), // Doğrudan new Date() kullanıyoruz
-            }])
-            setSelectedNoteId(null) // Her açıldığında sıfırla
+            setPlanInputs([]);
+            setSelectedLandmarks([]);
+            setPlanName('');
         }
-    }, [show])
+    }, [show]);
 
-    if (!show) return null
+    if (!show) return null;
 
-    async function handleAddPlan() {
-        if (selectedNoteId === null) return
-
-        const selectedNote = landmarks.find(n => n.id === selectedNoteId)
-        if (!selectedNote) return
-
-        const newPlan: PlanInput = {
-            id: Date.now(),
-            planName: selectedNote.name,
-            description: selectedNote.description,
-            planned_date: planInputs[0].planned_date,
-            landmark_id: selectedNote.id,
+    async function handleAddPlans() {
+        if (!planName.trim()) {
+            alert("Plan ismini girmelisiniz.");
+            return;
         }
+
+        if (selectedLandmarks.length === 0) {
+            alert("En az bir yer seçmelisiniz.");
+            return;
+        }
+
+        const invalidPlans = planInputs.some(input => new Date(input.planned_date) < new Date());
+        if (invalidPlans) {
+            alert("Planlanan tarih geçmişte olamaz.");
+            return;
+        }
+
+        const newPlanItems = selectedLandmarks.map(landmark => {
+            const planInput = planInputs.find(input => input.landmarkId === landmark.id);
+            return {
+                landmarkId: landmark.id,
+                plannedDate: planInput ? planInput.planned_date : new Date().toISOString(),
+            };
+        });
+
+        const visitingPlan = {
+            name: planName, // 🔹 Dinamik plan ismi
+            items: newPlanItems,
+        };
 
         try {
             const response = await fetch('/api/plans', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    user_name: "demo_user",
-                    note: newPlan.description,
-                    planned_date: newPlan.planned_date.toISOString(),
-                    landmark_id: newPlan.landmark_id,
-                }),
-            })
+                body: JSON.stringify(visitingPlan),
+            });
 
-            if (!response.ok) throw new Error('Failed to create plan')
+            const responseData = await response.json();
 
-            console.log('Plan added successfully')
-        } catch (err) {
-            console.error('Error adding plan:', err)
+            if (!response.ok) {
+                const errorMessage = responseData.error || 'Plan oluşturulamadı';
+                throw new Error(errorMessage);
+            }
+
+            alert('Gezinti planı başarıyla oluşturuldu!');
+        } catch (err: unknown) {
+            if (err instanceof Error) {
+                alert(`Plan eklerken bir hata oluştu: ${err.message}`);
+            } else {
+                alert('Plan eklerken bir hata oluştu.');
+            }
         }
 
-        // Formu temizle
-        setPlanInputs([{
-            id: 1,
-            planName: '',
-            description: '',
-            planned_date: new Date(),
-        }])
-        setSelectedNoteId(null)
+        setPlanInputs([]);
+        setSelectedLandmarks([]);
+        setPlanName('');
     }
 
-    function handleChange(index: number, field: keyof PlanInput, value: string | Date) {
-        const updatedInputs = [...planInputs]
-        updatedInputs[index] = {
-            ...updatedInputs[index],
-            [field]: value,
+    function handleSelectLandmark(event: React.ChangeEvent<HTMLSelectElement>) {
+        const landmarkId = parseInt(event.target.value);
+        const selectedLandmark = landmarks.find((landmark) => landmark.id === landmarkId);
+
+        if (selectedLandmark && !selectedLandmarks.some(landmark => landmark.id === selectedLandmark.id)) {
+            setSelectedLandmarks([...selectedLandmarks, selectedLandmark]);
+            setPlanInputs([
+                ...planInputs,
+                { landmarkId: selectedLandmark.id, planned_date: new Date().toISOString() },
+            ]);
         }
-        setPlanInputs(updatedInputs)
     }
 
-    function handleDateChange(index: number, value: string) {
-        const updatedInputs = [...planInputs]
-        updatedInputs[index] = {
-            ...updatedInputs[index],
-            planned_date: new Date(value),
-        }
-        setPlanInputs(updatedInputs)
+    function handleRemoveLandmark(landmarkId: number) {
+        setSelectedLandmarks(selectedLandmarks.filter(landmark => landmark.id !== landmarkId));
+        setPlanInputs(planInputs.filter(input => input.landmarkId !== landmarkId));
+    }
+
+    function handleDateChange(landmarkId: number, value: string) {
+        setPlanInputs(prevInputs => {
+            const updated = prevInputs.map(input =>
+                input.landmarkId === landmarkId
+                    ? { ...input, planned_date: value }
+                    : input
+            );
+            return updated;
+        });
     }
 
     return (
-        <div className="fixed top-1/2 left-0 transform -translate-y-1/2 p-4 w-96 max-h-screen overflow-y-auto shadow-lg z-50 bg-white rounded-lg">
-            <button onClick={onClose} className="absolute top-2 right-2 text-gray-700 font-bold text-xl">×</button>
+        <div className="fixed top-1/2 left-0 transform -translate-y-1/2 p-4 w-96 max-h-screen overflow-y-auto shadow-lg z-50 bg-black/60 backdrop-blur-md rounded-xl">
+            <button onClick={onClose} className="absolute top-2 right-2 text-white font-bold text-xl">×</button>
 
-            {planInputs.map((plan, index) => (
-                <div key={plan.id} className="text-gray-900 border p-4 rounded-md shadow space-y-2 bg-gray-50 mb-4">
-                    <div>
-                        <label className="block text-sm font-medium">Plan Name</label>
-                        <input
-                            type="text"
-                            value={plan.planName}
-                            onChange={(e) => handleChange(index, 'planName', e.target.value)}
-                            className="border p-1 rounded w-full"
-                        />
-                    </div>
-                    <div>
-                        <label className="block text-sm font-medium">Plan Date</label>
-                        <input
-                            type="date"
-                            value={plan.planned_date.toISOString().split('T')[0]}
-                            onChange={(e) => handleDateChange(index, e.target.value)}
-                            className="border p-1 rounded w-full"
-                        />
-                    </div>
-                    <div>
-                        <label className="block text-sm font-medium">Select Landmark</label>
-                        <select
-                            value={selectedNoteId ?? ''}
-                            onChange={(e) => setSelectedNoteId(Number(e.target.value))}
-                            className="border p-1 rounded w-full"
-                        >
-                            <option value="">-- Select a landmark --</option>
-                            {landmarks.map(note => (
-                                <option key={note.id} value={note.id}>{note.name}</option>
-                            ))}
-                        </select>
-                    </div>
+            <div className="text-white border p-4 rounded-md shadow space-y-4 bg-black/40">
 
-                    {selectedNoteId && (() => {
-                        const selectedNote = landmarks.find(n => n.id === selectedNoteId)
-                        if (!selectedNote) return null
-                        return (
-                            <div className="p-2 border rounded bg-white shadow-sm text-sm">
-                                <p><strong>Name:</strong> {selectedNote.name}</p>
-                                <p><strong>Description:</strong> {selectedNote.description}</p>
-                                <p><strong>Category:</strong> {selectedNote.category}</p>
-                                <p><strong>Latitude:</strong> {selectedNote.latitude}</p>
-                                <p><strong>Longitude:</strong> {selectedNote.longitude}</p>
-                            </div>
-                        )
-                    })()}
-
-                    <button
-                        onClick={handleAddPlan}
-                        className="mt-2 bg-blue-500 text-white px-4 py-2 rounded w-full"
-                    >
-                        Add Plan
-                    </button>
+                <div>
+                    <label className="block mb-1 font-medium">Plan Adı</label>
+                    <input
+                        type="text"
+                        value={planName}
+                        onChange={(e) => setPlanName(e.target.value)}
+                        placeholder="Örn: Hafta Sonu Gezisi"
+                        className="bg-black/40 text-white w-full px-3 py-2 rounded-md border"
+                    />
                 </div>
-            ))}
+
+                <div>
+                    <h3 className="text-lg font-semibold">Yer Seçimi</h3>
+                    <select
+                        defaultValue="default"
+                        onChange={handleSelectLandmark}
+                        className="bg-black/40 text-white py-2 px-4 rounded-lg border focus:outline-none w-full"
+                    >
+                        <option value="default" disabled>Bir yer seçin</option>
+                        {landmarks.map((landmark) => (
+                            <option key={landmark.id} value={landmark.id}>
+                                {landmark.name}
+                            </option>
+                        ))}
+                    </select>
+                </div>
+
+                {selectedLandmarks.length > 0 && (
+                    <div className="space-y-4 mt-2">
+                        <h3 className="text-lg font-semibold">Seçilen Yerler</h3>
+                        {selectedLandmarks.map(landmark => (
+                            <div key={landmark.id} className="flex items-center justify-between border p-2 rounded-md bg-black/50">
+                                <span className="font-semibold">{landmark.name}</span>
+                                <div className="flex items-center gap-2">
+                                    <input
+                                        type="date"
+                                        value={planInputs.find(input => input.landmarkId === landmark.id)?.planned_date.split('T')[0] || ''}
+                                        onChange={(e) => handleDateChange(landmark.id, e.target.value)}
+                                        className="border py-1 px-2 rounded bg-black/30 text-white"
+                                    />
+                                    <button
+                                        onClick={() => handleRemoveLandmark(landmark.id)}
+                                        className="text-red-500 font-bold"
+                                    >
+                                        Sil
+                                    </button>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )}
+
+                <button
+                    onClick={handleAddPlans}
+                    className="mt-4 bg-blue-500 text-white px-4 py-2 rounded w-full hover:bg-blue-700 active:scale-95 transition font-medium"
+                >
+                    Planı Ekle
+                </button>
+            </div>
         </div>
-    )
+    );
 }

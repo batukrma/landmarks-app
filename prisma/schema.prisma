@@ -7,30 +7,34 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model landmarks {
-  id                Int                 @id @default(autoincrement())
-  name              String?             @db.VarChar(255)
-  latitude          Decimal             @db.Decimal(12, 8)
-  longitude         Decimal             @db.Decimal(12, 8)
-  description       String?
-  category          String?             @db.VarChar(100)
-  visited_landmarks visited_landmarks[]
-  visiting_plans    visiting_plans[]
+model Landmark {
+  id          Int        @id @default(autoincrement())
+  name        String?    @db.VarChar(255)
+  latitude    Decimal    @db.Decimal(12, 8)
+  longitude   Decimal    @db.Decimal(12, 8)
+  description String?
+  category    String?    @db.VarChar(100)
+  planItems   PlanItem[]
+
+  @@map("landmarks")
 }
 
-model visited_landmarks {
-  id           Int       @id @default(autoincrement())
-  landmark_id  Int
-  visited_date DateTime  @db.Date
-  visitor_name String?   @db.VarChar(255)
-  landmarks    landmarks @relation(fields: [landmark_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+model VisitingPlan {
+  id    Int        @id @default(autoincrement())
+  name  String     @db.VarChar(255)
+  items PlanItem[]
+
+  @@map("visiting_plans")
 }
 
-model visiting_plans {
-  id           Int        @id @default(autoincrement())
-  user_name    String?    @db.VarChar(255)
-  landmark_id  Int?
-  planned_date DateTime?  @db.Date
-  note         String?
-  landmarks    landmarks? @relation(fields: [landmark_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+model PlanItem {
+  id             Int          @id @default(autoincrement())
+  visitingPlanId Int
+  landmarkId     Int
+  plannedDate    DateTime     @db.Date
+  visited        Boolean      @default(false)
+  visitingPlan   VisitingPlan @relation(fields: [visitingPlanId], references: [id], onDelete: Cascade)
+  landmark       Landmark     @relation(fields: [landmarkId], references: [id], onDelete: Cascade)
+
+  @@map("plan_items")
 }

@@ -1,6 +1,10 @@
 {
   "compilerOptions": {
     "target": "ES2017",
+    "typeRoots": [
+      "./node_modules/@types", // Varsayılan olarak yüklü tipler
+      "./types" // Yeni oluşturduğumuz types dizini
+    ],
     "lib": [
       "dom",
       "dom.iterable",
