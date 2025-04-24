@@ -27,41 +27,18 @@ export async function GET() {
     }
 }
 
-// // READ: Tek bir landmark getir
-// export async function GET_ONE(request: Request) {
-//     try {
-//         const id = parseInt(request.url.split('/').pop() || '')
-//         const landmark = await prisma.landmark.findUnique({ where: { id } })
-//         if (!landmark) {
-//             return new Response('Landmark not found', { status: 404 })
-//         }
-//         return new Response(JSON.stringify(landmark), { status: 200 })
-//     } catch {
-//         return new Response('Failed to fetch landmark', { status: 500 })
-//     }
-// }
+// UPDATE: Landmark'ı güncelleme
+export async function PUT(request: Request) {
+    try {
+        const { id, name, latitude, longitude, description, category } = await request.json();
+        const updatedLandmark = await prisma.landmark.update({
+            where: { id },
+            data: { name, latitude, longitude, description, category },
+        });
 
-// // UPDATE: Varolan bir landmark'ı güncelle
-// export async function PUT(request: Request) {
-//     try {
-//         const { id, name, latitude, longitude, description, category } = await request.json()
-//         const updatedLandmark = await prisma.landmark.update({
-//             where: { id },
-//             data: { name, latitude, longitude, description, category }
-//         })
-//         return new Response(JSON.stringify(updatedLandmark), { status: 200 })
-//     } catch {
-//         return new Response('Failed to update landmark', { status: 500 })
-//     }
-// }
-
-// // DELETE: Landmark'ı sil
-// export async function DELETE(request: Request) {
-//     try {
-//         const id = parseInt(request.url.split('/').pop() || '')
-//         const deletedLandmark = await prisma.landmark.delete({ where: { id } })
-//         return new Response(JSON.stringify(deletedLandmark), { status: 200 })
-//     } catch {
-//         return new Response('Failed to delete landmark', { status: 500 })
-//     }
-// }
+        return new Response(JSON.stringify(updatedLandmark), { status: 200 });
+    } catch (error) {
+        console.error('Landmark güncellenirken hata:', error);
+        return new Response('Landmark güncellenirken bir hata oluştu.', { status: 500 });
+    }
+}

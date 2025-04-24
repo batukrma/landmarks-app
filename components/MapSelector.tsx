@@ -1,3 +1,4 @@
+
 'use client'
 
 import { useState, useEffect } from 'react'
@@ -30,14 +31,31 @@ interface Landmark {
     category: string
 }
 
+interface PlanItem {
+    id: number;
+    plannedDate: string;
+    visited: boolean;
+    color: string;
+    landmark: Landmark;
+    plan_id?: number;
+}
+
+interface VisitingPlan {
+    id: number;
+    items: PlanItem[];
+}
+
+
 interface VisitedLandmark {
     id: number
     visited_date: string
-    plannedDate?: string  // Add plannedDate field (optional)
+    plannedDate?: string
     plan_id?: number
     visitor_name: string
     landmark: Landmark
+    color: string
 }
+
 
 export default function MapSelector({ onLocationSelect }: MapSelectorProps) {
     const [selectedPosition, setSelectedPosition] = useState<[number, number] | null>(null)
@@ -45,6 +63,7 @@ export default function MapSelector({ onLocationSelect }: MapSelectorProps) {
     const [showPlansTable, setShowPlansTable] = useState(false)
     const [landmarks, setLandmarks] = useState<Landmark[]>([])
     const [visitingPlans, setVisitingPlans] = useState<VisitedLandmark[]>([])
+
 
     useEffect(() => {
         const storedVisitedLandmarks = localStorage.getItem('visitedLandmarks')
@@ -75,40 +94,38 @@ export default function MapSelector({ onLocationSelect }: MapSelectorProps) {
         return selectedPosition ? <Marker position={selectedPosition} /> : null
     }
 
+
+
     const handleGetPlans = async () => {
         try {
-            const response = await fetch('/api/planItems?visited=false')
-            const data = await response.json()
-            setVisitingPlans(data)
-            console.log('Landmarks:', data)
+            const response = await fetch('/api/plans');
+            const data: VisitingPlan[] = await response.json();
+
+            const allItems = data.flatMap((plan) =>
+                plan.items.map((item) => ({
+                    ...item,
+                    plan_id: plan.id,
+                    color: item.color,
+                    visited_date: item.visited ? new Date().toISOString() : '',
+                    visitor_name: item.visited ? 'Visitor Name' : '',
+                }))
+            );
+
+            setVisitingPlans(allItems as VisitedLandmark[]);
+            console.log('Planned landmarks:', allItems);
         } catch (error) {
-            console.error('Error fetching planned landmarks:', error)
+            console.error('Error fetching planned landmarks:', error);
         }
+    };
+
+
+
+    function handleGetVisited(): void {
+        throw new Error('Function not implemented.')
     }
 
-    const handleGetVisited = async () => {
-        try {
-            const response = await fetch('/api/planItems?visited=true')
-            const data = await response.json()
-            setVisitedLandmarks(data)
-            console.log('Landmarks:', data)
-        } catch (error) {
-            console.error('Error fetching visited landmarks:', error)
-        }
-    }
-
-    const handleClearMarkers = () => {
-        setVisitedLandmarks([])
-        setVisitingPlans([])
-    }
-
-    const planColors: Record<number, string> = {}
-    function getColorForPlan(planId: number): string {
-        if (!planColors[planId]) {
-            const randomColor = '#' + Math.floor(Math.random() * 16777215).toString(16)
-            planColors[planId] = randomColor
-        }
-        return planColors[planId]
+    function handleClearMarkers(): void {
+        return setVisitedLandmarks([]), setVisitingPlans([])
     }
 
     return (
@@ -130,7 +147,7 @@ export default function MapSelector({ onLocationSelect }: MapSelectorProps) {
                         position={[plan.landmark.latitude, plan.landmark.longitude]}
                         icon={L.divIcon({
                             className: 'custom-div-icon',
-                            html: `<div style='background:${getColorForPlan(plan.plan_id ?? 0)};border-radius:50%;width:20px;height:20px;'></div>`,
+                            html: `<div style='background:${plan.color};border-radius:50%;width:20px;height:20px;'></div>`,
                         })}
                     >
                         <Popup>
@@ -138,7 +155,7 @@ export default function MapSelector({ onLocationSelect }: MapSelectorProps) {
                             {plan.landmark.description}<br />
                             Category: {plan.landmark.category}<br />
                             Planned by: {'Batuhan Kırma'}<br />
-                            Planned Date: {plan.plannedDate ? new Date(plan.plannedDate).toLocaleDateString() : 'Not Available'} {/* Fallback if plannedDate is undefined */}
+                            Planned Date: {plan.plannedDate ? new Date(plan.plannedDate).toLocaleDateString() : 'Not Available'}
                         </Popup>
                     </Marker>
                 ))}
@@ -153,7 +170,7 @@ export default function MapSelector({ onLocationSelect }: MapSelectorProps) {
                             {vl.landmark.description}<br />
                             Category: {vl.landmark.category}<br />
                             Visited by: {vl.visitor_name}<br />
-                            Visited on: {new Date(vl.visited_date).toLocaleDateString()}  {/* Show visited date */}
+                            Visited on: {new Date(vl.visited_date).toLocaleDateString()}
                         </Popup>
                     </Marker>
                 ))}
@@ -188,6 +205,9 @@ export default function MapSelector({ onLocationSelect }: MapSelectorProps) {
                 onClose={() => setShowPlansTable(false)}
                 landmarks={landmarks}
             />
+
+
+
 
             {selectedPosition && (
                 <div className="absolute bottom-24 left-1/2 transform -translate-x-1/2 z-50 bg-black/60 text-white px-6 py-2 rounded-full shadow-md text-sm font-medium">

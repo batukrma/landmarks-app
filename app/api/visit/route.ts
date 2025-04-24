@@ -21,3 +21,24 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: 'Failed to mark visit' }, { status: 500 })
     }
 }
+
+export async function PUT(request: Request) {
+    try {
+        const body = await request.json();
+        const { planItemId } = body;
+
+        const updatedItem = await prisma.planItem.update({
+            where: { id: planItemId },
+            data: {
+                visited: true, // Ziyaret edilme durumunu true yapıyoruz
+            },
+        });
+
+        return NextResponse.json(updatedItem);
+    } catch (error) {
+        console.error('Hata meydana geldi:', error);
+        return NextResponse.json({ error: 'Ziyaret durumu güncellenirken hata oluştu.' }, { status: 500 });
+    }
+}
+
+

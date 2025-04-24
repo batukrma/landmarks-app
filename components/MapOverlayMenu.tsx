@@ -43,6 +43,7 @@ export default function MapOverlayMenu({
                 >
                     Create Plan
                 </button>
+
                 <button
                     onClick={onClearMarkers}
                     className="cursor-pointer active:scale-95 text-white hover:bg-neutral-700 bg-black/40 px-4 py-2 rounded-lg transition font-medium"

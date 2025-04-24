@@ -1,5 +1,5 @@
 import { PrismaClient } from '@prisma/client'
-import { NextResponse } from 'next/server'
+import { NextResponse, NextRequest } from 'next/server'
 
 const prisma = new PrismaClient()
 
@@ -18,3 +18,26 @@ export async function GET(req: Request) {
         return NextResponse.json({ error: 'Failed to fetch plan items' }, { status: 500 })
     }
 }
+
+// DELETE: Plan item'ı (landmark'ı) silme
+export async function DELETE(request: NextRequest) {
+    try {
+        const { planItemId } = await request.json(); // Plan item ID'si
+
+        const deletedItem = await prisma.planItem.delete({
+            where: { id: planItemId },
+        });
+
+        return new NextResponse(
+            JSON.stringify({ success: true, deletedItem }),
+            { status: 200 }
+        );
+    } catch (error) {
+        console.error('Plan item silinirken hata:', error);
+        return new NextResponse(
+            JSON.stringify({ error: 'Plan item silinirken bir hata oluştu.' }),
+            { status: 500 }
+        );
+    }
+}
+
