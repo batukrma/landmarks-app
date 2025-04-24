@@ -5,7 +5,12 @@ import 'leaflet/dist/leaflet.css'
 import MapOverlayMenu from './MapOverlayMenu'
 import LandmarkTable from './LandmarkTable'
 import PlansTable from './PlansTable'
-import UpdateForm from './UpdateForm'; // Burada doğru yolu yazdığınızdan emin olun
+import UpdateForm from './UpdateForm';
+
+
+interface LandmarkUpdate {
+    name: string;
+}
 
 
 // Leaflet marker icons fix
@@ -54,11 +59,6 @@ interface VisitedLandmark {
     color: string
 }
 
-interface LandmarkUpdate {
-    name: string;
-    description: string;
-    category: string;
-}
 
 
 
@@ -194,7 +194,7 @@ export default function MapSelector({ onLocationSelect }: MapSelectorProps) {
             <UpdateForm
                 onMarkAsVisited={handleMarkAsVisited}
                 onUpdateLandmark={handleUpdateLandmark}
-                onDeleteLandmark={handleDeleteLandmark}
+                onDeletePlan={handleDeleteLandmark}
             />
 
             <LandmarkTable

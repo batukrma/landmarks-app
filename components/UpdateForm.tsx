@@ -2,18 +2,21 @@
 
 import { useState, useEffect } from 'react'
 
+
 interface LandmarkUpdate {
     name: string;
 }
 
 interface UpdateFormProps {
     onMarkAsVisited: (id: number) => void;
-    onDeleteLandmark: (id: number) => void;
+    onUpdateLandmark: (id: number, updatedData: LandmarkUpdate) => void;
+    onDeletePlan: (id: number) => void;
 }
 
 const UpdateForm = ({
     onMarkAsVisited,
-    onDeleteLandmark,
+    onUpdateLandmark,
+    onDeletePlan,
 }: UpdateFormProps) => {
     const [selectedPlan, setSelectedPlan] = useState<number | null>(null);
     const [isFormVisible, setIsFormVisible] = useState(false);
@@ -28,7 +31,6 @@ const UpdateForm = ({
     }[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
-    // Modal için yeni state'ler
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editLandmark, setEditLandmark] = useState<null | {
         id: number;
@@ -37,6 +39,7 @@ const UpdateForm = ({
 
     const toggleForm = () => setIsFormVisible(!isFormVisible);
 
+    // Güncel verileri al
     const fetchPlansAndLandmarks = async () => {
         try {
             const plansResponse = await fetch('/api/plans');
@@ -58,7 +61,24 @@ const UpdateForm = ({
         fetchPlansAndLandmarks();
     }, []);
 
-    const handleDeleteLandmark = (id: number) => onDeleteLandmark(id);
+    // Plan silme işlemi sonrası güncelleme
+    const handleDeletePlan = async (planId: number) => {
+        try {
+            const response = await fetch(`/api/plans/${planId}`, { method: 'DELETE' });
+
+            if (response.ok) {
+                console.log("Plan deleted successfully.");
+                onDeletePlan(planId); // Parent bileşene silme işlemi bildirildi
+
+                // Silme işleminden sonra verileri yeniden çek
+                fetchPlansAndLandmarks(); // Planlar ve landmarks güncellenir
+            } else {
+                console.log("Failed to delete plan.");
+            }
+        } catch (error) {
+            console.error("Error deleting plan:", error);
+        }
+    };
 
     const handleMarkAsVisited = async (landmarkId: number) => {
         try {
@@ -118,7 +138,6 @@ const UpdateForm = ({
         if (editLandmark) {
             handleUpdateLandmark(editLandmark.id, { name: editLandmark.name });
 
-            // UI'de güncelleme
             setLandmarks(prevLandmarks =>
                 prevLandmarks.map(landmark =>
                     landmark.id === editLandmark.id
@@ -143,12 +162,14 @@ const UpdateForm = ({
 
             const data = await res.json();
             console.log('Updated:', data);
+
+            // 👇 Burayı ekle!
+            onUpdateLandmark(id, updatedData);
+
         } catch (err) {
             console.error('Failed to update landmark', err);
         }
     };
-
-
 
 
 
@@ -185,6 +206,14 @@ const UpdateForm = ({
                                     </option>
                                 ))}
                             </select>
+                            {selectedPlan && (
+                                <button
+                                    onClick={() => handleDeletePlan(selectedPlan!)}
+                                    className="mt-2 bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded w-full text-sm font-semibold"
+                                >
+                                    Delete Selected Plan
+                                </button>
+                            )}
                         </div>
 
                         {isLoading ? (
@@ -221,12 +250,7 @@ const UpdateForm = ({
                                                             >
                                                                 Update
                                                             </button>
-                                                            <button
-                                                                onClick={() => handleDeleteLandmark(landmark.id)}
-                                                                className="text-white bg-red-500 hover:bg-red-600 px-3 py-1.5 rounded-lg text-sm"
-                                                            >
-                                                                Delete
-                                                            </button>
+
                                                         </div>
                                                     </li>
                                                 ))}
@@ -243,26 +267,7 @@ const UpdateForm = ({
                                                         <p><strong>{landmark.name}</strong></p>
                                                         <p>{landmark.description}</p>
                                                         <p>Category: {landmark.category}</p>
-
-                                                        <div className="flex space-x-2 mt-2">
-                                                            <button
-                                                                onClick={() =>
-                                                                    openEditModal({
-                                                                        id: landmark.id,
-                                                                        name: landmark.name,
-                                                                    })
-                                                                }
-                                                                className="text-white bg-blue-500 hover:bg-blue-600 px-3 py-1.5 rounded-lg text-sm"
-                                                            >
-                                                                Update
-                                                            </button>
-                                                            <button
-                                                                onClick={() => handleDeleteLandmark(landmark.id)}
-                                                                className="text-white bg-red-500 hover:bg-red-600 px-3 py-1.5 rounded-lg text-sm"
-                                                            >
-                                                                Delete
-                                                            </button>
-                                                        </div>
+                                                        <p>{landmark.visited ? 'Visited' : 'Not Visited'}</p>
                                                     </li>
                                                 ))}
                                             </ul>
@@ -277,43 +282,36 @@ const UpdateForm = ({
 
             {/* Modal */}
             {isModalOpen && editLandmark && (
-                <div className="fixed inset-0 bg-black bg-opacity-30 backdrop-blur-sm flex items-center justify-center z-50">
-                    <div className="bg-white p-4 rounded shadow-lg w-full max-w-md">
-                        <h2 className="text-lg font-semibold">Edit Landmark</h2>
-                        <div className="space-y-2">
-                            <div>
-                                <label htmlFor="name" className="block text-sm font-medium">Name:</label>
-                                <input
-                                    id="name"
-                                    type="text"
-                                    value={editLandmark.name}
-                                    onChange={(e) =>
-                                        setEditLandmark({ ...editLandmark, name: e.target.value })
-                                    }
-                                    className="border p-2 w-full rounded"
-                                />
-                            </div>
-
-                            <div className="flex justify-between mt-4">
-                                <button
-                                    onClick={() => setIsModalOpen(false)}
-                                    className="text-gray-500 hover:text-gray-700"
-                                >
-                                    Cancel
-                                </button>
-                                <button
-                                    onClick={handleModalSave}
-                                    className="bg-blue-500 text-white hover:bg-blue-600 px-4 py-2 rounded"
-                                >
-                                    Save Changes
-                                </button>
-                            </div>
+                <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/40 backdrop-blur-md">
+                    <div className="bg-white p-6 rounded-md shadow-xl space-y-4">
+                        <h2 className="text-xl">Edit Landmark</h2>
+                        <input
+                            type="text"
+                            value={editLandmark.name}
+                            onChange={(e) =>
+                                setEditLandmark({ ...editLandmark, name: e.target.value })
+                            }
+                            className="border p-2 rounded w-full"
+                        />
+                        <div className="flex space-x-2">
+                            <button
+                                onClick={handleModalSave}
+                                className="bg-blue-500 text-white px-4 py-2 rounded"
+                            >
+                                Save
+                            </button>
+                            <button
+                                onClick={() => setIsModalOpen(false)}
+                                className="bg-gray-500 text-white px-4 py-2 rounded"
+                            >
+                                Cancel
+                            </button>
                         </div>
                     </div>
                 </div>
             )}
         </div>
-    )
-}
+    );
+};
 
 export default UpdateForm;

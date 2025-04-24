@@ -1,24 +1,21 @@
 import prisma from "@/prisma/client";
 import { NextResponse } from "next/server";
 
-// PATCH: Landmark'ı ziyaret edilmiş olarak işaretleme
 export async function PATCH(req: Request) {
     try {
-        // Request body'den ID'yi al
         const { landmarkId } = await req.json();
 
         if (!landmarkId || isNaN(Number(landmarkId))) {
             return NextResponse.json({ error: "Invalid landmark ID" }, { status: 400 });
         }
 
-        // PlanItem tablosundaki ziyaret edilmemiş landmark'ı güncelle
         const updatedLandmark = await prisma.planItem.updateMany({
             where: {
                 landmarkId: Number(landmarkId),
-                visited: false, // Ziyaret edilmemiş olanları güncelle
+                visited: false, // 
             },
             data: {
-                visited: true, // Ziyaret edilmiş olarak işaretle
+                visited: true,
             },
         });
 

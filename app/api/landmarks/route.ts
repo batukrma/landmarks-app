@@ -3,7 +3,6 @@ import { NextResponse } from 'next/server';
 
 const prisma = new PrismaClient();
 
-// CREATE: Yeni landmark oluştur
 export async function POST(request: Request) {
     try {
         const { name, latitude, longitude, description, category } = await request.json();
@@ -16,7 +15,6 @@ export async function POST(request: Request) {
     }
 }
 
-// GET: Landmark'ları getir
 export async function GET() {
     try {
         const landmarks = await prisma.landmark.findMany();
@@ -35,7 +33,6 @@ type LandmarkData = {
     category: string;
 };
 
-// UPDATE: Landmark güncelleme fonksiyonu
 export async function updateLandmark(id: number, data: LandmarkData) {
     if (id === undefined || id === null) {
         throw new Error('Invalid ID');
@@ -43,7 +40,7 @@ export async function updateLandmark(id: number, data: LandmarkData) {
 
     try {
         const updatedLandmark = await prisma.landmark.update({
-            where: { id: id }, // Burada ID'yi sayıya dönüştürmeye gerek yok
+            where: { id: id },
             data: data,
         });
         return updatedLandmark;
