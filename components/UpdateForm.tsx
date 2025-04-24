@@ -58,21 +58,48 @@ const UpdateForm = ({
         fetchPlansAndLandmarks();
     }, []); // Runs only once when the component is mounted
 
-    const handleMarkAsVisited = (id: number) => onMarkAsVisited(id);
     const handleUpdateLandmark = (id: number, updates: LandmarkUpdate) =>
         onUpdateLandmark(id, updates);
     const handleDeleteLandmark = (id: number) => onDeleteLandmark(id);
 
-    // Filter landmarks by selected plan
-    const filteredLandmarks = selectedPlan
-        ? landmarks.filter((landmark) => landmark.planId === selectedPlan)
-        : landmarks;
+    // Handle marking landmark as visited
+    const handleMarkAsVisited = async (landmarkId: number) => {
+        try {
+            const response = await fetch('/api/visit', {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ landmarkId }), // Landmark ID'yi body olarak gönder
+            });
+
+            if (response.ok) {
+                console.log("Landmark marked as visited.");
+                onMarkAsVisited(landmarkId);
+
+
+                setLandmarks(prevLandmarks =>
+                    prevLandmarks.map(landmark =>
+                        landmark.id === landmarkId
+                            ? { ...landmark, visited: true }
+                            : landmark
+                    )
+                );
+            } else {
+                console.log("Failed to mark landmark as visited.");
+            }
+        } catch (error) {
+            console.error("Error marking landmark as visited:", error);
+        }
+    };
+
+
 
     const handlePlanChange = async (selectedPlanId: number) => {
-        setSelectedPlan(selectedPlanId); // Güncel plan ID'sini ayarla
+        setSelectedPlan(selectedPlanId);
 
         try {
-            const response = await fetch(`/api/planItems?planId=${selectedPlanId}&visited=false`);
+            const response = await fetch(`/api/planItems?planId=${selectedPlanId}`);
 
             if (!response.ok) {
                 console.error("Error fetching plan items:", response.status, await response.text());
@@ -80,35 +107,28 @@ const UpdateForm = ({
             }
 
             const data = await response.json();
-
-            setLandmarks(data); // Gelen landmark verisini landmark state'ine setle
+            setLandmarks(data);
         } catch (error) {
             console.error("Error during fetch:", error);
         }
     };
 
+    const unvisitedLandmarks = landmarks.filter((landmark) => !landmark.visited);
+    const visitedLandmarks = landmarks.filter((landmark) => landmark.visited);
 
     return (
-        <div className="fixed top-1/2 left-0 transform -translate-y-1/2 p-4 w-96 max-h-screen overflow-y-auto shadow-lg z-50">
+        <div className="absolute top-1/2 left-0 transform -translate-y-1/2 p-4 w-96 max-h-screen overflow-y-auto shadow-xl z-50 bg-black/20 backdrop-blur-md">
             <div className="flex flex-col space-y-4">
                 <button
                     onClick={toggleForm}
-                    className="cursor-pointer active:scale-95 text-neutral-1000 hover:bg-black bg-neutral-700 px-4 py-2 rounded-lg transition font-medium"
+                    className="cursor-pointer active:scale-95 text-white hover:bg-neutral-700 bg-black/40 px-4 py-2 rounded-lg transition font-medium"
                 >
-                    Open Form
+                    {isFormVisible ? 'Close' : ' Update Settings '}
+
                 </button>
 
                 {isFormVisible && (
-                    <div className="text-gray-900 border p-4 rounded-md shadow space-y-4 bg-gray-50">
-                        <h2 className="font-medium text-xl">Landmark Update</h2>
-                        <button
-                            onClick={toggleForm}
-                            className="text-white bg-red-600 px-4 py-2 rounded-lg transition font-medium mt-2"
-                        >
-                            Close
-                        </button>
-
-                        {/* Plan Selection */}
+                    <div className="text-gray-900 border p-4 rounded-md shadow-xl space-y-4 bg-gray-50">
                         <div className="form-group">
                             <label htmlFor="plan-select" className="block text-sm font-medium">
                                 Select Plan:
@@ -135,50 +155,84 @@ const UpdateForm = ({
                         {isLoading ? (
                             <p>Loading...</p>
                         ) : (
-                            <div>
-                                <h3 className="font-medium">Landmarks</h3>
-                                {filteredLandmarks.length > 0 ? (
-                                    <ul>
-                                        {filteredLandmarks.map((landmark) => (
-                                            <li key={landmark.id} className="border-b py-2">
-                                                <p><strong>{landmark.name}</strong></p>
-                                                <p>{landmark.description}</p>
-                                                <p>Category: {landmark.category}</p>
-                                                <p>{landmark.visited ? 'Visited' : 'Not Visited'}</p>
+                            selectedPlan && (
+                                <div>
+                                    <h3 className="font-medium"></h3>
+                                    {unvisitedLandmarks.length > 0 && (
+                                        <div>
+                                            <h4 className="text-sm font-semibold">Unvisited</h4>
+                                            <ul>
+                                                {unvisitedLandmarks.map((landmark) => (
+                                                    <li key={landmark.id} className="border-b py-2">
+                                                        <p><strong>{landmark.name}</strong></p>
+                                                        <p>{landmark.description}</p>
+                                                        <p>Category: {landmark.category}</p>
+                                                        <p>{landmark.visited ? 'Visited' : 'Not Visited'}</p>
 
-                                                <div className="flex space-x-2 mt-2">
-                                                    <button
-                                                        onClick={() => handleMarkAsVisited(landmark.id)}
-                                                        className="cursor-pointer active:scale-95 text-white hover:bg-green-600 bg-green-500 px-4 py-2 rounded-lg transition font-medium"
-                                                    >
-                                                        {landmark.visited ? 'Visited' : 'Mark as Visited'}
-                                                    </button>
-                                                    <button
-                                                        onClick={() => handleUpdateLandmark(landmark.id, { name: landmark.name, description: landmark.description, category: landmark.category })}
-                                                        className="cursor-pointer active:scale-95 text-white hover:bg-blue-600 bg-blue-500 px-4 py-2 rounded-lg transition font-medium"
-                                                    >
-                                                        Update
-                                                    </button>
-                                                    <button
-                                                        onClick={() => handleDeleteLandmark(landmark.id)}
-                                                        className="cursor-pointer active:scale-95 text-white hover:bg-red-600 bg-red-500 px-4 py-2 rounded-lg transition font-medium"
-                                                    >
-                                                        Delete
-                                                    </button>
-                                                </div>
-                                            </li>
-                                        ))}
-                                    </ul>
-                                ) : (
-                                    <p>No landmarks found for this plan.</p>
-                                )}
-                            </div>
+                                                        <div className="flex space-x-2 mt-2">
+                                                            <button
+                                                                onClick={() => handleMarkAsVisited(landmark.id)}
+                                                                className="cursor-pointer active:scale-95 text-white hover:bg-neutral-600 bg-neutral-500 px-3 py-1.5 rounded-lg transition font-medium text-sm"
+                                                            >
+                                                                {landmark.visited ? 'Visited' : 'Mark as Visited'}
+                                                            </button>
+                                                            <button
+                                                                onClick={() => handleUpdateLandmark(landmark.id, { name: landmark.name, description: landmark.description, category: landmark.category })}
+                                                                className="cursor-pointer active:scale-95 text-white hover:bg-blue-600 bg-blue-500 px-3 py-1.5 rounded-lg transition font-medium text-sm"
+                                                            >
+                                                                Update
+                                                            </button>
+                                                            <button
+                                                                onClick={() => handleDeleteLandmark(landmark.id)}
+                                                                className="cursor-pointer active:scale-95 text-white hover:bg-red-600 bg-red-500 px-3 py-1.5 rounded-lg transition font-medium text-sm"
+                                                            >
+                                                                Delete
+                                                            </button>
+                                                        </div>
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        </div>
+                                    )}
+
+                                    {visitedLandmarks.length > 0 && (
+                                        <div>
+                                            <h4 className="text-sm font-semibold">Visited</h4>
+                                            <ul>
+                                                {visitedLandmarks.map((landmark) => (
+                                                    <li key={landmark.id} className="border-b py-2">
+                                                        <p><strong>{landmark.name}</strong></p>
+                                                        <p>{landmark.description}</p>
+                                                        <p>Category: {landmark.category}</p>
+                                                        <p>{landmark.visited ? 'Visited' : 'Not Visited'}</p>
+
+                                                        <div className="flex space-x-2 mt-2">
+                                                            <button
+                                                                onClick={() => handleUpdateLandmark(landmark.id, { name: landmark.name, description: landmark.description, category: landmark.category })}
+                                                                className="cursor-pointer active:scale-95 text-white hover:bg-blue-600 bg-blue-500 px-3 py-1.5 rounded-lg transition font-medium text-sm"
+                                                            >
+                                                                Update
+                                                            </button>
+                                                            <button
+                                                                onClick={() => handleDeleteLandmark(landmark.id)}
+                                                                className="cursor-pointer active:scale-95 text-white hover:bg-red-600 bg-red-500 px-3 py-1.5 rounded-lg transition font-medium text-sm"
+                                                            >
+                                                                Delete
+                                                            </button>
+                                                        </div>
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        </div>
+                                    )}
+                                </div>
+                            )
                         )}
                     </div>
                 )}
             </div>
         </div>
     );
-};
+}
 
 export default UpdateForm;

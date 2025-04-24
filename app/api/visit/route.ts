@@ -1,44 +1,34 @@
-import { NextResponse } from 'next/server'
-import { PrismaClient } from '@prisma/client'
+import prisma from "@/prisma/client";
+import { NextResponse } from "next/server";
 
-const prisma = new PrismaClient()
-
-export async function POST(req: Request) {
+// PATCH: Landmark'ı ziyaret edilmiş olarak işaretleme
+export async function PATCH(req: Request) {
     try {
-        const body = await req.json()
-        const { plan_id } = body
+        // Request body'den ID'yi al
+        const { landmarkId } = await req.json();
 
-        const updatedItem = await prisma.planItem.update({
-            where: { id: plan_id },
-            data: {
-                visited: true,
+        if (!landmarkId || isNaN(Number(landmarkId))) {
+            return NextResponse.json({ error: "Invalid landmark ID" }, { status: 400 });
+        }
+
+        // PlanItem tablosundaki ziyaret edilmemiş landmark'ı güncelle
+        const updatedLandmark = await prisma.planItem.updateMany({
+            where: {
+                landmarkId: Number(landmarkId),
+                visited: false, // Ziyaret edilmemiş olanları güncelle
             },
-        })
-
-        return NextResponse.json(updatedItem)
-    } catch (error) {
-        console.error('Error marking visit:', error)
-        return NextResponse.json({ error: 'Failed to mark visit' }, { status: 500 })
-    }
-}
-
-export async function PUT(request: Request) {
-    try {
-        const body = await request.json();
-        const { planItemId } = body;
-
-        const updatedItem = await prisma.planItem.update({
-            where: { id: planItemId },
             data: {
-                visited: true, // Ziyaret edilme durumunu true yapıyoruz
+                visited: true, // Ziyaret edilmiş olarak işaretle
             },
         });
 
-        return NextResponse.json(updatedItem);
+        if (updatedLandmark.count > 0) {
+            return NextResponse.json({ message: "Landmark marked as visited." });
+        } else {
+            return NextResponse.json({ message: "No updates were made, landmark might already be visited." });
+        }
     } catch (error) {
-        console.error('Hata meydana geldi:', error);
-        return NextResponse.json({ error: 'Ziyaret durumu güncellenirken hata oluştu.' }, { status: 500 });
+        console.error("Error marking landmark as visited:", error);
+        return NextResponse.json({ error: "Failed to mark landmark as visited" }, { status: 500 });
     }
 }
-
-

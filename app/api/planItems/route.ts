@@ -1,6 +1,7 @@
 import prisma from "@/prisma/client";
 import { NextResponse } from "next/server";
 
+// Mevcut GET fonksiyonu
 export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
     const visited = searchParams.get("visited");
@@ -36,3 +37,4 @@ export async function GET(req: Request) {
         return NextResponse.json({ error: "Failed to fetch landmarks" }, { status: 500 });
     }
 }
+
