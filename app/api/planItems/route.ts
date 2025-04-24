@@ -1,43 +1,38 @@
-import { PrismaClient } from '@prisma/client'
-import { NextResponse, NextRequest } from 'next/server'
-
-const prisma = new PrismaClient()
+import prisma from "@/prisma/client";
+import { NextResponse } from "next/server";
 
 export async function GET(req: Request) {
-    const { searchParams } = new URL(req.url)
-    const visited = searchParams.get('visited') === 'true'
+    const { searchParams } = new URL(req.url);
+    const visited = searchParams.get("visited");
+    const planId = searchParams.get("planId");
+
+    if (!planId) {
+        return NextResponse.json({ error: "planId query parameter is required" }, { status: 400 });
+    }
 
     try {
         const planItems = await prisma.planItem.findMany({
-            where: { visited },
-            include: { landmark: true }
-        })
-        return NextResponse.json(planItems)
-    } catch (error) {
-        console.error('Error fetching plan items:', error)
-        return NextResponse.json({ error: 'Failed to fetch plan items' }, { status: 500 })
-    }
-}
-
-// DELETE: Plan item'ı (landmark'ı) silme
-export async function DELETE(request: NextRequest) {
-    try {
-        const { planItemId } = await request.json(); // Plan item ID'si
-
-        const deletedItem = await prisma.planItem.delete({
-            where: { id: planItemId },
+            where: {
+                visitingPlanId: Number(planId),
+                ...(visited !== null && { visited: visited === "true" }),
+            },
+            include: {
+                landmark: true,
+            },
         });
 
-        return new NextResponse(
-            JSON.stringify({ success: true, deletedItem }),
-            { status: 200 }
-        );
+        const landmarks = planItems.map((item) => ({
+            id: item.landmark.id,
+            name: item.landmark.name,
+            description: item.landmark.description,
+            category: item.landmark.category,
+            visited: item.visited,
+            planId: item.visitingPlanId, // front-end için planId'yi ekliyoruz
+        }));
+
+        return NextResponse.json(landmarks);
     } catch (error) {
-        console.error('Plan item silinirken hata:', error);
-        return new NextResponse(
-            JSON.stringify({ error: 'Plan item silinirken bir hata oluştu.' }),
-            { status: 500 }
-        );
+        console.error("Error fetching plan items:", error);
+        return NextResponse.json({ error: "Failed to fetch landmarks" }, { status: 500 });
     }
 }
-

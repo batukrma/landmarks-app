@@ -3,7 +3,6 @@
 
 interface MapOverlayMenuProps {
     myPlans: () => void;
-    onGetVisited: () => void;
     onClearMarkers: () => void;
     setShowPlansTable: (show: boolean) => void;
 
@@ -16,9 +15,10 @@ interface MapOverlayMenuProps {
     }[];
 }
 
+
+
 export default function MapOverlayMenu({
     myPlans,
-    onGetVisited,
     onClearMarkers,
     setShowPlansTable,
 }: MapOverlayMenuProps) {
@@ -31,19 +31,13 @@ export default function MapOverlayMenu({
                 >
                     My plans
                 </button>
-                <button
-                    onClick={onGetVisited}
-                    className="cursor-pointer active:scale-95 text-white hover:bg-neutral-700 bg-black/40 px-4 py-2 rounded-lg transition font-medium"
-                >
-                    Visited Places
-                </button>
+
                 <button
                     onClick={() => setShowPlansTable(true)}
                     className="cursor-pointer active:scale-95 text-white hover:bg-neutral-700 bg-black/40 px-4 py-2 rounded-lg transition font-medium"
                 >
                     Create Plan
                 </button>
-
                 <button
                     onClick={onClearMarkers}
                     className="cursor-pointer active:scale-95 text-white hover:bg-neutral-700 bg-black/40 px-4 py-2 rounded-lg transition font-medium"

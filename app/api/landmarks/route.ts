@@ -42,3 +42,5 @@ export async function PUT(request: Request) {
         return new Response('Landmark güncellenirken bir hata oluştu.', { status: 500 });
     }
 }
+
+

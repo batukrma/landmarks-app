@@ -1,6 +1,3 @@
-
-'use client'
-
 import { useState, useEffect } from 'react'
 import { MapContainer, TileLayer, Marker, Popup, useMapEvents } from 'react-leaflet'
 import L from 'leaflet'
@@ -8,6 +5,8 @@ import 'leaflet/dist/leaflet.css'
 import MapOverlayMenu from './MapOverlayMenu'
 import LandmarkTable from './LandmarkTable'
 import PlansTable from './PlansTable'
+import UpdateForm from './UpdateForm'; // Burada doğru yolu yazdığınızdan emin olun
+
 
 // Leaflet marker icons fix
 // eslint-disable-next-line
@@ -45,7 +44,6 @@ interface VisitingPlan {
     items: PlanItem[];
 }
 
-
 interface VisitedLandmark {
     id: number
     visited_date: string
@@ -56,6 +54,13 @@ interface VisitedLandmark {
     color: string
 }
 
+interface LandmarkUpdate {
+    name: string;
+    description: string;
+    category: string;
+}
+
+
 
 export default function MapSelector({ onLocationSelect }: MapSelectorProps) {
     const [selectedPosition, setSelectedPosition] = useState<[number, number] | null>(null)
@@ -64,6 +69,22 @@ export default function MapSelector({ onLocationSelect }: MapSelectorProps) {
     const [landmarks, setLandmarks] = useState<Landmark[]>([])
     const [visitingPlans, setVisitingPlans] = useState<VisitedLandmark[]>([])
 
+    const handleMarkAsVisited = (id: number) => {
+        console.log(`Marking landmark with id ${id} as visited`);
+    };
+
+    const handleUpdateLandmark = (id: number, updatedData: LandmarkUpdate) => {
+        console.log(`Updating landmark with id ${id}`, updatedData);
+        setLandmarks((prevLandmarks) =>
+            prevLandmarks.map((landmark) =>
+                landmark.id === id ? { ...landmark, ...updatedData } : landmark
+            )
+        );
+    };
+
+    const handleDeleteLandmark = (id: number) => {
+        console.log(`Deleting landmark with id ${id}`);
+    };
 
     useEffect(() => {
         const storedVisitedLandmarks = localStorage.getItem('visitedLandmarks')
@@ -94,8 +115,6 @@ export default function MapSelector({ onLocationSelect }: MapSelectorProps) {
         return selectedPosition ? <Marker position={selectedPosition} /> : null
     }
 
-
-
     const handleGetPlans = async () => {
         try {
             const response = await fetch('/api/plans');
@@ -117,12 +136,6 @@ export default function MapSelector({ onLocationSelect }: MapSelectorProps) {
             console.error('Error fetching planned landmarks:', error);
         }
     };
-
-
-
-    function handleGetVisited(): void {
-        throw new Error('Function not implemented.')
-    }
 
     function handleClearMarkers(): void {
         return setVisitedLandmarks([]), setVisitingPlans([])
@@ -160,28 +173,11 @@ export default function MapSelector({ onLocationSelect }: MapSelectorProps) {
                     </Marker>
                 ))}
 
-                {visitedLandmarks.map((vl) => (
-                    <Marker
-                        key={`visited-${vl.id}`}
-                        position={[vl.landmark.latitude, vl.landmark.longitude]}
-                    >
-                        <Popup>
-                            <strong>{vl.landmark.name}</strong><br />
-                            {vl.landmark.description}<br />
-                            Category: {vl.landmark.category}<br />
-                            Visited by: {vl.visitor_name}<br />
-                            Visited on: {new Date(vl.visited_date).toLocaleDateString()}
-                        </Popup>
-                    </Marker>
-                ))}
-
-
                 <LocationMarker />
             </MapContainer>
 
             <MapOverlayMenu
                 myPlans={handleGetPlans}
-                onGetVisited={handleGetVisited}
                 onClearMarkers={handleClearMarkers}
                 visitedLandmarks={visitedLandmarks.map((vl) => ({
                     id: vl.id,
@@ -191,23 +187,24 @@ export default function MapSelector({ onLocationSelect }: MapSelectorProps) {
                     visitor_name: vl.visitor_name,
                 }))}
                 setShowPlansTable={(val: boolean) => {
-                    if (val) fetchLandmarks()
-                    setShowPlansTable(val)
+                    if (val) fetchLandmarks();
+                    setShowPlansTable(val);
                 }}
+            />
+            <UpdateForm
+                onMarkAsVisited={handleMarkAsVisited}
+                onUpdateLandmark={handleUpdateLandmark}
+                onDeleteLandmark={handleDeleteLandmark}
             />
 
             <LandmarkTable
                 selectedLandmark={selectedPosition ? selectedPosition : [0, 0]}
             />
-
             <PlansTable
                 show={showPlansTable}
                 onClose={() => setShowPlansTable(false)}
                 landmarks={landmarks}
             />
-
-
-
 
             {selectedPosition && (
                 <div className="absolute bottom-24 left-1/2 transform -translate-x-1/2 z-50 bg-black/60 text-white px-6 py-2 rounded-full shadow-md text-sm font-medium">

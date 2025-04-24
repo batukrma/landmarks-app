@@ -1,205 +1,184 @@
-import { useState, useEffect } from 'react';
+'use client'
 
-export interface Landmark {
-    id: number;
-    name?: string;
-    latitude: string;
-    longitude: string;
-    description?: string;
-    category?: string;
-    planItems: PlanItem[];
+import { useState, useEffect } from 'react'
 
-}
-
-interface PlanItem {
-    id: string;
-    description: string;
-    visited: boolean;
-    color: string;
-    visited_date: string | null;
-    visitor_name: string | null;
-}
-
-export interface VisitingPlan {
-    id: number;
+interface LandmarkUpdate {
     name: string;
-    items: PlanItem[];
+    description: string;
+    category: string;
+    visited?: boolean; // Updated to include the visited property
 }
 
-
-export interface LandmarkFormProps {
-    landmark: Landmark;
-    onUpdate: (landmark: Landmark) => void;
-    onCancel: () => void;
-    onDelete: (landmarkId: number) => void;
-    onRemoveLandmark: (landmarkId: number) => void;
-    onClose: () => void;
-    landmarks: Landmark[];
+interface UpdateFormProps {
+    onMarkAsVisited: (id: number) => void;
+    onUpdateLandmark: (id: number, updatedData: LandmarkUpdate) => void;
+    onDeleteLandmark: (id: number) => void;
 }
 
-export default function UpdateForm({
-    landmark,
-    onUpdate,
-    onCancel,
-    onDelete,
-    onRemoveLandmark,
-}: LandmarkFormProps) {
-    const [name, setName] = useState(landmark.name || '');
-    const [latitude, setLatitude] = useState(landmark.latitude);
-    const [longitude, setLongitude] = useState(landmark.longitude);
-    const [description, setDescription] = useState(landmark.description || '');
-    const [category, setCategory] = useState(landmark.category || '');
+const UpdateForm = ({
+    onMarkAsVisited,
+    onUpdateLandmark,
+    onDeleteLandmark,
+}: UpdateFormProps) => {
+    const [selectedPlan, setSelectedPlan] = useState<number | null>(null);
+    const [isFormVisible, setIsFormVisible] = useState(false);
+    const [plans, setPlans] = useState<{ id: number; name: string }[]>([]);
+    const [landmarks, setLandmarks] = useState<{
+        id: number;
+        name: string;
+        description: string;
+        category: string;
+        visited: boolean;
+        planId: number; // Add planId to filter landmarks by plan
+    }[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
 
-    useEffect(() => {
-        if (!landmark) return;
+    const toggleForm = () => setIsFormVisible(!isFormVisible);
 
-        setName(landmark.name || '');
-        setLatitude(landmark.latitude);
-        setLongitude(landmark.longitude);
-        setDescription(landmark.description || '');
-        setCategory(landmark.category || '');
-    }, [landmark]);
-
-    const handleUpdate = async () => {
-        const updatedLandmark = {
-            ...landmark,
-            name,
-            latitude,
-            longitude,
-            description,
-            category,
-        };
-
+    const fetchPlansAndLandmarks = async () => {
         try {
-            const response = await fetch('/api/landmark/route.ts', {
-                method: 'PUT',
-                body: JSON.stringify(updatedLandmark),
-                headers: { 'Content-Type': 'application/json' },
-            });
+            // Fetch plans data
+            const plansResponse = await fetch('/api/plans');
+            const plansData = await plansResponse.json();
+            setPlans(plansData);
 
-            const responseData = await response.json();
-            if (!response.ok) {
-                const errorMessage = responseData.error || 'Yer güncellenemedi';
-                throw new Error(errorMessage);
-            }
+            // Fetch landmarks data
+            const landmarksResponse = await fetch('/api/landmarks');
+            const landmarksData = await landmarksResponse.json();
+            setLandmarks(landmarksData);
 
-            onUpdate(updatedLandmark);
-            alert('Yer başarıyla güncellendi!');
-        } catch (err: unknown) {
-            if (err instanceof Error) {
-                alert(`Yer güncellenirken bir hata oluştu: ${err.message}`);
-            } else {
-                alert('Yer güncellenirken bir hata oluştu.');
-            }
+            setIsLoading(false);
+        } catch (error) {
+            console.error('Error fetching data:', error);
+            setIsLoading(false); // Set loading to false in case of error
         }
     };
 
-    const handleDelete = async () => {
+    useEffect(() => {
+        fetchPlansAndLandmarks();
+    }, []); // Runs only once when the component is mounted
+
+    const handleMarkAsVisited = (id: number) => onMarkAsVisited(id);
+    const handleUpdateLandmark = (id: number, updates: LandmarkUpdate) =>
+        onUpdateLandmark(id, updates);
+    const handleDeleteLandmark = (id: number) => onDeleteLandmark(id);
+
+    // Filter landmarks by selected plan
+    const filteredLandmarks = selectedPlan
+        ? landmarks.filter((landmark) => landmark.planId === selectedPlan)
+        : landmarks;
+
+    const handlePlanChange = async (selectedPlanId: number) => {
+        setSelectedPlan(selectedPlanId); // Güncel plan ID'sini ayarla
+
         try {
-            const response = await fetch('/api/landmark/route.ts', {
-                method: 'DELETE',
-                body: JSON.stringify({ id: landmark.id }),
-                headers: { 'Content-Type': 'application/json' },
-            });
+            const response = await fetch(`/api/planItems?planId=${selectedPlanId}&visited=false`);
 
-            const responseData = await response.json();
             if (!response.ok) {
-                const errorMessage = responseData.error || 'Yer silinemedi';
-                throw new Error(errorMessage);
+                console.error("Error fetching plan items:", response.status, await response.text());
+                return;
             }
 
-            onDelete(landmark.id);
-            alert('Yer başarıyla silindi!');
-        } catch (err: unknown) {
-            if (err instanceof Error) {
-                alert(`Yer silinirken bir hata oluştu: ${err.message}`);
-            } else {
-                alert('Yer silinirken bir hata oluştu.');
-            }
+            const data = await response.json();
+
+            setLandmarks(data); // Gelen landmark verisini landmark state'ine setle
+        } catch (error) {
+            console.error("Error during fetch:", error);
         }
     };
 
 
     return (
-        <div className="fixed top-1/2 left-0 transform -translate-y-1/2 p-4 w-96 max-h-screen overflow-y-auto shadow-lg z-50 bg-black/60 backdrop-blur-md rounded-xl">
-            <button onClick={onCancel} className="absolute top-2 right-2 text-white font-bold text-xl">×</button>
+        <div className="fixed top-1/2 left-0 transform -translate-y-1/2 p-4 w-96 max-h-screen overflow-y-auto shadow-lg z-50">
+            <div className="flex flex-col space-y-4">
+                <button
+                    onClick={toggleForm}
+                    className="cursor-pointer active:scale-95 text-neutral-1000 hover:bg-black bg-neutral-700 px-4 py-2 rounded-lg transition font-medium"
+                >
+                    Open Form
+                </button>
 
-            <div className="text-white border p-4 rounded-md shadow space-y-4 bg-black/40">
-                <div>
-                    <label className="block mb-1 font-medium">Yer Adı</label>
-                    <input
-                        type="text"
-                        value={name}
-                        onChange={(e) => setName(e.target.value)}
-                        placeholder="Örn: İstanbul"
-                        className="bg-black/40 text-white w-full px-3 py-2 rounded-md border"
-                    />
-                </div>
+                {isFormVisible && (
+                    <div className="text-gray-900 border p-4 rounded-md shadow space-y-4 bg-gray-50">
+                        <h2 className="font-medium text-xl">Landmark Update</h2>
+                        <button
+                            onClick={toggleForm}
+                            className="text-white bg-red-600 px-4 py-2 rounded-lg transition font-medium mt-2"
+                        >
+                            Close
+                        </button>
 
-                <div>
-                    <label className="block mb-1 font-medium">Enlem</label>
-                    <input
-                        type="text"
-                        value={latitude}
-                        onChange={(e) => setLatitude(e.target.value)}
-                        placeholder="Örn: 41.0082"
-                        className="bg-black/40 text-white w-full px-3 py-2 rounded-md border"
-                    />
-                </div>
+                        {/* Plan Selection */}
+                        <div className="form-group">
+                            <label htmlFor="plan-select" className="block text-sm font-medium">
+                                Select Plan:
+                            </label>
+                            <select
+                                id="plan-select"
+                                value={selectedPlan || ''}
+                                onChange={(e) => {
+                                    const selectedId = Number(e.target.value);
+                                    setSelectedPlan(selectedId);
+                                    handlePlanChange(selectedId);
+                                }}
+                                className="border p-2 rounded w-full"
+                            >
+                                <option value="">Select Plan</option>
+                                {plans.map((plan) => (
+                                    <option key={plan.id} value={plan.id}>
+                                        {plan.name}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
 
-                <div>
-                    <label className="block mb-1 font-medium">Boylam</label>
-                    <input
-                        type="text"
-                        value={longitude}
-                        onChange={(e) => setLongitude(e.target.value)}
-                        placeholder="Örn: 28.9784"
-                        className="bg-black/40 text-white w-full px-3 py-2 rounded-md border"
-                    />
-                </div>
+                        {isLoading ? (
+                            <p>Loading...</p>
+                        ) : (
+                            <div>
+                                <h3 className="font-medium">Landmarks</h3>
+                                {filteredLandmarks.length > 0 ? (
+                                    <ul>
+                                        {filteredLandmarks.map((landmark) => (
+                                            <li key={landmark.id} className="border-b py-2">
+                                                <p><strong>{landmark.name}</strong></p>
+                                                <p>{landmark.description}</p>
+                                                <p>Category: {landmark.category}</p>
+                                                <p>{landmark.visited ? 'Visited' : 'Not Visited'}</p>
 
-                <div>
-                    <label className="block mb-1 font-medium">Açıklama</label>
-                    <textarea
-                        value={description}
-                        onChange={(e) => setDescription(e.target.value)}
-                        placeholder="Yer hakkında açıklama"
-                        className="bg-black/40 text-white w-full px-3 py-2 rounded-md border"
-                    />
-                </div>
-
-                <div>
-                    <label className="block mb-1 font-medium">Kategori</label>
-                    <input
-                        type="text"
-                        value={category}
-                        onChange={(e) => setCategory(e.target.value)}
-                        placeholder="Örn: Doğa, Tarihi"
-                        className="bg-black/40 text-white w-full px-3 py-2 rounded-md border"
-                    />
-                </div>
-
-                <div className="flex justify-between gap-4 mt-4">
-                    <button
-                        onClick={handleUpdate}
-                        className="bg-blue-500 text-white px-4 py-2 rounded w-full hover:bg-blue-700 active:scale-95 transition font-medium"
-                    >
-                        Güncelle
-                    </button>
-                    <button
-                        onClick={handleDelete}
-                        className="bg-red-500 text-white px-4 py-2 rounded w-full hover:bg-red-700 active:scale-95 transition font-medium"
-                    >
-                        Sil
-                    </button>
-                    <button
-                        onClick={() => onRemoveLandmark(landmark.id)}
-                        className="text-red-500 font-bold"
-                    >
-                        Sil
-                    </button>
-                </div>
+                                                <div className="flex space-x-2 mt-2">
+                                                    <button
+                                                        onClick={() => handleMarkAsVisited(landmark.id)}
+                                                        className="cursor-pointer active:scale-95 text-white hover:bg-green-600 bg-green-500 px-4 py-2 rounded-lg transition font-medium"
+                                                    >
+                                                        {landmark.visited ? 'Visited' : 'Mark as Visited'}
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleUpdateLandmark(landmark.id, { name: landmark.name, description: landmark.description, category: landmark.category })}
+                                                        className="cursor-pointer active:scale-95 text-white hover:bg-blue-600 bg-blue-500 px-4 py-2 rounded-lg transition font-medium"
+                                                    >
+                                                        Update
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleDeleteLandmark(landmark.id)}
+                                                        className="cursor-pointer active:scale-95 text-white hover:bg-red-600 bg-red-500 px-4 py-2 rounded-lg transition font-medium"
+                                                    >
+                                                        Delete
+                                                    </button>
+                                                </div>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                ) : (
+                                    <p>No landmarks found for this plan.</p>
+                                )}
+                            </div>
+                        )}
+                    </div>
+                )}
             </div>
         </div>
     );
-}
+};
+
+export default UpdateForm;
