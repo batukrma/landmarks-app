@@ -1,7 +1,6 @@
 import prisma from "@/prisma/client";
 import { NextResponse } from "next/server";
 
-// Mevcut GET fonksiyonu
 export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
     const visited = searchParams.get("visited");
@@ -28,7 +27,7 @@ export async function GET(req: Request) {
             description: item.landmark.description,
             category: item.landmark.category,
             visited: item.visited,
-            planId: item.visitingPlanId, // front-end için planId'yi ekliyoruz
+            planId: item.visitingPlanId,
         }));
 
         return NextResponse.json(landmarks);

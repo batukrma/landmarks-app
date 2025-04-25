@@ -15,5 +15,6 @@ export const LANDMARK_CATEGORIES = [
     "Amusement Park",
     "Historic Castle",
     "Archaeological Site",
+    "Historical Landmark",
     "Other"
 ];

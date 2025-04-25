@@ -27,6 +27,7 @@ const UpdateForm = ({
         description: string;
         category: string;
         visited: boolean;
+        plannedDate: Date;
         planId: number;
         latitude: number;
         longitude: number;
@@ -46,6 +47,7 @@ const UpdateForm = ({
             const plansResponse = await fetch('/api/plans');
             const plansData = await plansResponse.json();
             setPlans(plansData);
+            console.log(plansData);
 
             const landmarksResponse = await fetch('/api/landmarks');
             const landmarksData = await landmarksResponse.json();
@@ -232,6 +234,8 @@ const UpdateForm = ({
                                                     <li key={landmark.id} className="border-b py-2">
                                                         <p><strong>{landmark.name}</strong></p>
                                                         <p>{landmark.description}</p>
+                                                        <p>Planned Date: {new Date(landmark.plannedDate).toLocaleDateString()}</p>
+
                                                         <p>Category: {landmark.category}</p>
                                                         <p>{landmark.visited ? 'Visited' : 'Not Visited'}</p>
 
@@ -269,6 +273,7 @@ const UpdateForm = ({
                                                     <li key={landmark.id} className="border-b py-2">
                                                         <p><strong>{landmark.name}</strong></p>
                                                         <p>{landmark.description}</p>
+                                                        <p>Planned Date: {new Date(landmark.plannedDate).toLocaleDateString()}</p>
                                                         <p>Category: {landmark.category}</p>
                                                         <p>{landmark.visited ? 'Visited' : 'Not Visited'}</p>
                                                     </li>
