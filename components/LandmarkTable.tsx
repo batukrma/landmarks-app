@@ -16,7 +16,6 @@ export default function LandmarkTable({ selectedLandmark }: { selectedLandmark: 
             alert("Lütfen not eklenecek bir konum seçiniz.")
             return;
         }
-        // Formu sıfırlıyoruz
         setName('');
         setDescription('');
         setCategory('');
@@ -25,7 +24,6 @@ export default function LandmarkTable({ selectedLandmark }: { selectedLandmark: 
         setIsTableOpen(true);
     };
 
-    // Form açıkken koordinatlar güncellenirse, otomatik güncelle
     useEffect(() => {
         if (isTableOpen) {
             setLatitude(selectedLandmark[0]);
@@ -38,6 +36,8 @@ export default function LandmarkTable({ selectedLandmark }: { selectedLandmark: 
             alert("Lütfen tüm alanları doldurun!");
             return;
         }
+        const confirmed = confirm("Are you sure you want to save this landmark?");
+        if (!confirmed) return;
 
         try {
             const response = await fetch('/api/landmarks', {

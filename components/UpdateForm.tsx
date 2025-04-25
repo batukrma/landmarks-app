@@ -28,6 +28,8 @@ const UpdateForm = ({
         category: string;
         visited: boolean;
         planId: number;
+        latitude: number;
+        longitude: number;
     }[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
@@ -39,7 +41,6 @@ const UpdateForm = ({
 
     const toggleForm = () => setIsFormVisible(!isFormVisible);
 
-    // Güncel verileri al
     const fetchPlansAndLandmarks = async () => {
         try {
             const plansResponse = await fetch('/api/plans');
@@ -61,17 +62,17 @@ const UpdateForm = ({
         fetchPlansAndLandmarks();
     }, []);
 
-    // Plan silme işlemi sonrası güncelleme
     const handleDeletePlan = async (planId: number) => {
+        const confirmed = confirm("Are you sure you want to delete this plan?");
+        if (!confirmed) return;
+
         try {
             const response = await fetch(`/api/plans/${planId}`, { method: 'DELETE' });
 
             if (response.ok) {
                 console.log("Plan deleted successfully.");
-                onDeletePlan(planId); // Parent bileşene silme işlemi bildirildi
-
-                // Silme işleminden sonra verileri yeniden çek
-                fetchPlansAndLandmarks(); // Planlar ve landmarks güncellenir
+                onDeletePlan(planId);
+                fetchPlansAndLandmarks();
             } else {
                 console.log("Failed to delete plan.");
             }
@@ -80,7 +81,10 @@ const UpdateForm = ({
         }
     };
 
+
     const handleMarkAsVisited = async (landmarkId: number) => {
+        const confirmed = confirm("Are you sure you want to mark this landmark as visited?");
+        if (!confirmed) return;
         try {
             const response = await fetch('/api/visit', {
                 method: 'PATCH',
@@ -163,7 +167,6 @@ const UpdateForm = ({
             const data = await res.json();
             console.log('Updated:', data);
 
-            // 👇 Burayı ekle!
             onUpdateLandmark(id, updatedData);
 
         } catch (err) {
@@ -282,27 +285,27 @@ const UpdateForm = ({
 
             {/* Modal */}
             {isModalOpen && editLandmark && (
-                <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/40 backdrop-blur-md">
+                <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/50 backdrop-blur-sm">
                     <div className="bg-white p-6 rounded-md shadow-xl space-y-4">
-                        <h2 className="text-xl">Edit Landmark</h2>
+                        <h2 className="text-2xl font-bold text-black">Edit Landmark Name</h2>
                         <input
                             type="text"
                             value={editLandmark.name}
                             onChange={(e) =>
                                 setEditLandmark({ ...editLandmark, name: e.target.value })
                             }
-                            className="border p-2 rounded w-full"
+                            className="border p-2 rounded w-full text-black text-lg"
                         />
                         <div className="flex space-x-2">
                             <button
                                 onClick={handleModalSave}
-                                className="bg-blue-500 text-white px-4 py-2 rounded"
+                                className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-4 py-2 rounded"
                             >
                                 Save
                             </button>
                             <button
                                 onClick={() => setIsModalOpen(false)}
-                                className="bg-gray-500 text-white px-4 py-2 rounded"
+                                className="bg-gray-600 hover:bg-gray-700 text-white font-semibold px-4 py-2 rounded"
                             >
                                 Cancel
                             </button>
@@ -310,6 +313,7 @@ const UpdateForm = ({
                     </div>
                 </div>
             )}
+
         </div>
     );
 };

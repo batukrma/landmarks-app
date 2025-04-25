@@ -23,7 +23,7 @@ interface PlansTableProps {
 export default function PlansTable({ show, onClose, landmarks }: PlansTableProps) {
     const [planInputs, setPlanInputs] = useState<PlanInput[]>([]);
     const [selectedLandmarks, setSelectedLandmarks] = useState<Landmark[]>([]);
-    const [planName, setPlanName] = useState(''); // 🔹 Yeni: Plan ismi
+    const [planName, setPlanName] = useState('');
 
     useEffect(() => {
         if (show) {
@@ -61,7 +61,7 @@ export default function PlansTable({ show, onClose, landmarks }: PlansTableProps
         });
 
         const visitingPlan = {
-            name: planName, // 🔹 Dinamik plan ismi
+            name: planName,
             items: newPlanItems,
         };
 
@@ -123,7 +123,7 @@ export default function PlansTable({ show, onClose, landmarks }: PlansTableProps
     }
 
     return (
-        <div className="fixed top-1/2 left-0 transform -translate-y-1/2 p-4 w-96 max-h-screen overflow-y-auto shadow-lg z-50 bg-black/60 backdrop-blur-md rounded-xl">
+        <div className="absolute bottom-0 right-142  transform -translate-y-1/2 p-4 w-96 max-h-screen overflow-y-auto shadow-lg z-50 bg-black/60 backdrop-blur-md rounded-xl">
             <button onClick={onClose} className="absolute top-2 right-2 text-white font-bold text-xl">×</button>
 
             <div className="text-white border p-4 rounded-md shadow space-y-4 bg-black/40">
@@ -147,11 +147,14 @@ export default function PlansTable({ show, onClose, landmarks }: PlansTableProps
                         className="bg-black/40 text-white py-2 px-4 rounded-lg border focus:outline-none w-full"
                     >
                         <option value="default" disabled>Bir yer seçin</option>
-                        {landmarks.map((landmark) => (
-                            <option key={landmark.id} value={landmark.id}>
-                                {landmark.name}
-                            </option>
-                        ))}
+                        {landmarks
+                            .filter(lm => !selectedLandmarks.some(sl => sl.id === lm.id))
+                            .map((landmark) => (
+                                <option key={landmark.id} value={landmark.id}>
+                                    {landmark.name}
+                                </option>
+                            ))}
+
                     </select>
                 </div>
 
