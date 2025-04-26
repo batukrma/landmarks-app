@@ -8,7 +8,6 @@ A modern web application built with Next.js that allows users to explore and int
 - Interactive maps using Leaflet
 - Responsive design with Tailwind CSS
 - Type-safe development with TypeScript
-- Real-time data management with Supabase
 - Form handling with React Hook Form and Zod validation
 
 ## Tech Stack
