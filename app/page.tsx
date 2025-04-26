@@ -1,16 +1,31 @@
-'use client'
+'use client';
 
-import dynamic from 'next/dynamic'
+import ClientMap from '@/components/ClientMap';
+import { useRouter } from 'next/navigation';
 
-// 👇 Dynamically import MapSelector without SSR
-const MapSelector = dynamic(() => import('@/components/MapSelector'), {
-  ssr: false,
-})
+export default function Home() {
+  const router = useRouter();
 
-export default function Page() {
-  return (
-    <div className="p-6 space-y-4">
-      <MapSelector />
-    </div>
-  )
+  const handleSignOut = async () => {
+    try {
+      const response = await fetch('/api/auth/logout', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Logout failed');
+      }
+
+      // Redirect to login page after successful logout
+      router.push('/login');
+      router.refresh();
+    } catch (error) {
+      console.error('Error during logout:', error);
+    }
+  };
+
+  return <ClientMap onSignOut={handleSignOut} />;
 }

@@ -1,58 +1,147 @@
+import { createClient } from '@/lib/supabase';
+import { landmarkSchema } from '@/lib/validations/landmark';
 import { NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
 
-const prisma = new PrismaClient();
+export async function PATCH(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const supabase = await createClient();
 
-export async function PUT(req: Request, { params }: { params: { id: number } }) {
-    const { id } = params;
-    const { name, description, category, latitude, longitude } = await req.json();
+    // Get the user's session
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
 
-    const data: { name?: string; description?: string; category?: string; latitude?: number; longitude?: number } = {};
-
-    if (name !== undefined) data.name = name;
-    if (description !== undefined) data.description = description;
-    if (category !== undefined) data.category = category;
-    if (latitude !== undefined) data.latitude = parseFloat(latitude);
-    if (longitude !== undefined) data.longitude = parseFloat(longitude);
-
-    try {
-        const updatedLandmark = await prisma.landmark.update({
-            where: { id: Number(id) },
-            data,
-        });
-
-        return NextResponse.json(updatedLandmark); // Success response
-    } catch (error) {
-        console.error("Güncelleme hatası:", error);
-        return new NextResponse(
-            JSON.stringify({
-                message: 'Update failed',
-                error: error instanceof Error ? error.message : String(error),
-            }),
-            { status: 500, headers: { 'Content-Type': 'application/json' } }
-        );
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    const body = await request.json();
+    const validatedData = landmarkSchema.parse(body);
+    const { id } = await params;
+
+    // First get the landmark to check its plan ownership
+    const { data: landmark, error: landmarkError } = await supabase
+      .from('landmarks')
+      .select('plan_id')
+      .eq('id', id)
+      .single();
+
+    if (landmarkError || !landmark) {
+      return NextResponse.json(
+        { error: 'Landmark not found' },
+        { status: 404 }
+      );
+    }
+
+    // Verify the plan belongs to the user
+    const { data: plan, error: planError } = await supabase
+      .from('plans')
+      .select('id')
+      .eq('id', landmark.plan_id)
+      .eq('user_id', user.id)
+      .single();
+
+    if (planError || !plan) {
+      return NextResponse.json(
+        { error: 'Unauthorized to modify this landmark' },
+        { status: 403 }
+      );
+    }
+
+    // Update the landmark
+    const { data: updatedLandmark, error: updateError } = await supabase
+      .from('landmarks')
+      .update({
+        name: validatedData.name,
+        is_visited: validatedData.is_visited,
+        visit_date: validatedData.visit_date,
+        category: validatedData.category,
+        description: validatedData.description,
+      })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (updateError) {
+      return NextResponse.json({ error: updateError.message }, { status: 400 });
+    }
+
+    return NextResponse.json(updatedLandmark);
+  } catch (err) {
+    console.error('Error updating landmark:', err);
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    );
+  }
 }
 
+export async function DELETE(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const supabase = await createClient();
+    const { id } = await params;
+    // Get the user's session
+    const {
+      data: { session },
+      error: authError,
+    } = await supabase.auth.getSession();
 
-
-export async function DELETE(req: Request, { params }: { params: { id: number } }) {
-    const { id } = params; // This uses the dynamic parameter 'id'
-
-    try {
-        await prisma.landmark.delete({
-            where: { id: Number(id) },
-        });
-
-        return new NextResponse(null, { status: 204 }); // No content status code
-    } catch (error) {
-        console.error("Silme hatası:", error);
-        return new NextResponse(
-            JSON.stringify({
-                message: 'Delete failed',
-                error: error instanceof Error ? error.message : String(error),
-            }),
-            { status: 500, headers: { 'Content-Type': 'application/json' } }
-        );
+    if (authError || !session) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    // First get the landmark to check its plan ownership
+    const { data: landmark, error: landmarkError } = await supabase
+      .from('landmarks')
+      .select('plan_id')
+      .eq('id', id)
+      .single();
+
+    if (landmarkError || !landmark) {
+      return NextResponse.json(
+        { error: 'Landmark not found' },
+        { status: 404 }
+      );
+    }
+
+    // Verify the plan belongs to the user
+    const { data: plan, error: planError } = await supabase
+      .from('plans')
+      .select('id')
+      .eq('id', landmark.plan_id)
+      .eq('user_id', session.user.id)
+      .single();
+
+    if (planError || !plan) {
+      return NextResponse.json(
+        { error: 'Unauthorized to delete this landmark' },
+        { status: 403 }
+      );
+    }
+
+    // Delete the landmark
+    const { error: deleteError } = await supabase
+      .from('landmarks')
+      .delete()
+      .eq('id', id);
+
+    if (deleteError) {
+      return NextResponse.json({ error: deleteError.message }, { status: 400 });
+    }
+
+    return NextResponse.json({ message: 'Landmark deleted successfully' });
+  } catch (err) {
+    console.error('Error deleting landmark:', err);
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    );
+  }
 }

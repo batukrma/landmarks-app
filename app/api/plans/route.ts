@@ -1,133 +1,108 @@
-import { DateTime } from 'luxon';
-import { PrismaClient } from '@prisma/client';
-import { NextRequest, NextResponse } from 'next/server';
-import type { Prisma } from '@prisma/client';
+import { NextResponse } from 'next/server';
+import { createClient } from '@/lib/supabase';
 
-const prisma = new PrismaClient();
-
-export async function POST(request: NextRequest) {
-    try {
-        const { name, items }: { name: string; items: Prisma.PlanItemCreateManyInput[] } = await request.json();
-        console.log('Plan oluşturuluyor:', name, items);
-
-        let plan = await prisma.visitingPlan.findFirst({ where: { name } });
-        if (!plan) {
-            console.log('Yeni plan oluşturuluyor...');
-            plan = await prisma.visitingPlan.create({ data: { name } });
-        }
-
-        const newPlanItems = await Promise.all(
-            items.map(async (item: Prisma.PlanItemCreateManyInput) => {
-                const parsedPlannedDate = DateTime.fromISO(item.plannedDate, { zone: 'utc' });
-
-                if (!parsedPlannedDate.isValid) {
-                    throw new Error(`Geçersiz tarih formatı: landmarkId ${item.landmarkId} - Tarih: ${item.plannedDate}`);
-                }
-
-                const createdItem = await prisma.planItem.create({
-                    data: {
-                        landmark: { connect: { id: item.landmarkId } },
-                        plannedDate: parsedPlannedDate.toJSDate(),
-                        visited: false,
-                        visitingPlan: { connect: { id: plan!.id } },
-                    },
-                });
-
-                return createdItem;
-            })
-        );
-
-        console.log('Plan ve plan item’lar başarıyla oluşturuldu.');
-        return new NextResponse(
-            JSON.stringify({
-                success: true,
-                plan: plan,
-                planItems: newPlanItems,
-            }),
-            { status: 201 }
-        );
-    } catch (error) {
-        console.error('Plan oluşturulurken hata:', error);
-        return new NextResponse(
-            JSON.stringify({ error: 'Plan oluşturulurken bir hata oluştu.' }),
-            { status: 500 }
-        );
-    }
+interface Landmark {
+  name: string;
+  position: [number, number];
+  visit_date?: string;
 }
-const COLORS = [
-    '#FFD700', // sarı
-    '#00BFFF', // mavi
-    '#32CD32', // yeşil
-    '#FF69B4', // pembe
-    '#FFA500', // turuncu
-    '#8A2BE2', // mor
-    '#DC143C', // kırmızı
-    '#20B2AA', // turkuaz
-    '#FF7F50', // mercan
-    '#9370DB', // açık mor
-];
+
+interface RequestBody {
+  name: string;
+  landmarks: Landmark[];
+}
 
 export async function GET() {
-    try {
-        const plans = await prisma.visitingPlan.findMany({
-            include: {
-                items: {
-                    include: {
-                        landmark: true,
-                    },
-                },
-            },
-        });
+  try {
+    const supabase = await createClient();
 
-        // Plan ID'ye göre renk atama
-        const colorMap = new Map<number, string>();
-        let colorIndex = 0;
+    // Get the user's session
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
 
-        const coloredPlans = plans.map((plan) => {
-            let color = colorMap.get(plan.id);
-            if (!color) {
-                color = COLORS[colorIndex % COLORS.length];
-                colorMap.set(plan.id, color);
-                colorIndex++;
-            }
-
-            return {
-                ...plan,
-                items: plan.items.map((item) => ({
-                    ...item,
-                    color,
-                })),
-            };
-        });
-
-        return NextResponse.json(coloredPlans);
-    } catch (error) {
-        console.error('Planlar alınırken hata:', error);
-        return new NextResponse(
-            JSON.stringify({ error: 'Planlar alınırken bir hata oluştu.' }),
-            { status: 500 }
-        );
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    const { data: plans, error } = await supabase
+      .from('plans')
+      .select('id, name, created_at')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
+    }
+
+    return NextResponse.json(plans);
+  } catch (err) {
+    console.error('Error fetching plans:', err);
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    );
+  }
 }
 
-// DELETE: Plan silme
-export async function DELETE(request: NextRequest) {
-    try {
-        const { planId } = await request.json(); // Plan ID'yi alın
+export async function POST(request: Request) {
+  try {
+    const supabase = await createClient();
 
-        // Planı ve planın itemlarını sil
-        await prisma.planItem.deleteMany({ where: { visitingPlanId: planId } });
-        const deletedPlan = await prisma.visitingPlan.delete({ where: { id: planId } });
+    // Get the user's session
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
 
-        return new NextResponse(
-            JSON.stringify({ success: true, deletedPlan }),
-            { status: 200 }
-        );
-    } catch (error) {
-        console.error('Plan silinirken hata:', error);
-        return new NextResponse(
-            JSON.stringify({ error: 'Plan silinirken bir hata oluştu.' }),
-            { status: 500 }
-        );
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    const body = (await request.json()) as RequestBody;
+    const { name, landmarks } = body;
+
+    // Insert plan with user_id
+    const { data: planData, error: planError } = await supabase
+      .from('plans')
+      .insert([{ name, user_id: user.id }])
+      .select()
+      .single();
+
+    if (planError) {
+      return NextResponse.json({ error: planError.message }, { status: 400 });
+    }
+
+    // Insert landmarks using the new plan_id
+    const landmarksWithPlanId = landmarks.map((landmark) => ({
+      plan_id: planData.id,
+      name: landmark.name,
+      latitude: landmark.position[0],
+      longitude: landmark.position[1],
+      visit_date: landmark.visit_date || null,
+    }));
+
+    const { error: landmarksError } = await supabase
+      .from('landmarks')
+      .insert(landmarksWithPlanId);
+
+    if (landmarksError) {
+      return NextResponse.json(
+        { error: landmarksError.message },
+        { status: 400 }
+      );
+    }
+
+    return NextResponse.json({
+      message: 'Plan and landmarks created successfully',
+      plan_id: planData.id,
+    });
+  } catch (err) {
+    console.error('Error creating plan:', err);
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    );
+  }
 }
